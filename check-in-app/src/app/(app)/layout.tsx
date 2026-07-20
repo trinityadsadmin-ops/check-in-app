@@ -2,6 +2,7 @@ import { AppShell } from '@/components/shell/app-shell'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { ActiveAlert } from '@/components/shell/active-alert'
 import { CheckInSheet } from '@/components/shell/check-in-sheet'
+import { IncomingAlert } from '@/components/shell/incoming-alert'
 import { SosPanel } from '@/components/shell/sos-panel'
 import { ShellProvider } from '@/lib/shell/shell-provider'
 
@@ -25,6 +26,7 @@ export default function AppGroupLayout({ children }: { children: React.ReactNode
             <>
               <CheckInSheet />
               <SosPanel />
+              <IncomingAlert />
               <ActiveAlert />
             </>
           }

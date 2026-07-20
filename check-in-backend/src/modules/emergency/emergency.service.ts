@@ -1,4 +1,4 @@
-import { badRequest, notFound } from '../../core/errors/http-error.js'
+import { badRequest, forbidden, notFound } from '../../core/errors/http-error.js'
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { writeAuditLog, writeEventLog } from '../logs/logs.service.js'
 import type {
@@ -12,6 +12,7 @@ import type { AppEnv } from '../../types/hono.js'
 type EmergencyLogRow = {
   id: string
   user_id: string
+  work_location_id: string | null
   lat: number | string
   lng: number | string
   emergency_type: string | null
@@ -24,10 +25,21 @@ type EmergencyLogRow = {
   created_at: string
 }
 
+type EmergencyProfileRow = {
+  id: string
+  full_name: string | null
+  employee_code: string | null
+}
+
+type ActiveEmergencyRow = EmergencyLogRow & {
+  user?: EmergencyProfileRow | EmergencyProfileRow[] | null
+}
+
 function mapEmergencyLog(row: EmergencyLogRow) {
   return {
     id: row.id,
     userId: row.user_id,
+    workLocationId: row.work_location_id,
     lat: Number(row.lat),
     lng: Number(row.lng),
     emergencyType: row.emergency_type,
@@ -41,8 +53,60 @@ function mapEmergencyLog(row: EmergencyLogRow) {
   }
 }
 
+function firstProfile(
+  value: EmergencyProfileRow | EmergencyProfileRow[] | null | undefined
+): EmergencyProfileRow | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null
+  }
+
+  return value ?? null
+}
+
+function mapActiveEmergency(row: ActiveEmergencyRow) {
+  const profile = firstProfile(row.user)
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    workLocationId: row.work_location_id,
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    emergencyType: row.emergency_type,
+    message: row.message,
+    status: row.status,
+    triggeredAt: row.triggered_at,
+    user: profile
+      ? {
+          id: profile.id,
+          fullName: profile.full_name,
+          employeeCode: profile.employee_code
+        }
+      : null
+  }
+}
+
 const emergencySelect =
-  'id,user_id,lat,lng,emergency_type,message,status,triggered_at,acknowledged_at,resolved_at,handled_by,created_at'
+  'id,user_id,work_location_id,lat,lng,emergency_type,message,status,triggered_at,acknowledged_at,resolved_at,handled_by,created_at'
+
+const activeEmergencySelect = `${emergencySelect},user:profiles!emergency_logs_user_id_fkey(id,full_name,employee_code)`
+
+/** Resolve the caller's active work location (site). Returns null if unassigned. */
+async function getActiveWorkLocationId(userId: string) {
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { data, error } = await supabaseAdmin
+    .from('employee_work_areas')
+    .select('work_location_id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  return (data?.work_location_id as string | null | undefined) ?? null
+}
 
 export async function createEmergencyLog(input: {
   userId: string
@@ -50,10 +114,13 @@ export async function createEmergencyLog(input: {
   c?: Context<AppEnv> | undefined
 }) {
   const supabaseAdmin = requireSupabaseAdmin()
+  // Snapshot the caller's site so alerts fan out to everyone on the same site.
+  const workLocationId = await getActiveWorkLocationId(input.userId)
   const { data, error } = await supabaseAdmin
     .from('emergency_logs')
     .insert({
       user_id: input.userId,
+      work_location_id: workLocationId,
       lat: input.payload.lat,
       lng: input.payload.lng,
       emergency_type: input.payload.emergencyType ?? null,
@@ -78,6 +145,85 @@ export async function createEmergencyLog(input: {
       lng: input.payload.lng,
       emergencyType: input.payload.emergencyType ?? null
     },
+    c: input.c
+  })
+
+  return { emergencyLog: mapEmergencyLog(data as EmergencyLogRow) }
+}
+
+/**
+ * OPEN alerts visible to a staff device: everything broadcast on the caller's
+ * active site (including the caller's own). Staff with no assigned site only
+ * see their own alerts — their rows carry a null work_location_id, which can
+ * never match a site filter (mirrors listSiteAreaInspections).
+ */
+export async function listActiveEmergencies(userId: string) {
+  const supabaseAdmin = requireSupabaseAdmin()
+  const workLocationId = await getActiveWorkLocationId(userId)
+
+  let request = supabaseAdmin
+    .from('emergency_logs')
+    .select(activeEmergencySelect)
+    .eq('status', 'OPEN')
+    .order('triggered_at', { ascending: false })
+    .limit(20)
+
+  request = workLocationId
+    ? request.eq('work_location_id', workLocationId)
+    : request.eq('user_id', userId)
+
+  const { data, error } = await request
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  return {
+    emergencies: ((data ?? []) as unknown as ActiveEmergencyRow[]).map(
+      mapActiveEmergency
+    )
+  }
+}
+
+/** Staff-side cancel: resolves the caller's own alert (any other user is 403). */
+export async function cancelOwnEmergency(input: {
+  userId: string
+  emergencyLogId: string
+  c?: Context<AppEnv> | undefined
+}) {
+  const supabaseAdmin = requireSupabaseAdmin()
+  const existing = await getEmergencyLog(input.emergencyLogId)
+
+  if (existing.emergencyLog.userId !== input.userId) {
+    throw forbidden('You can only cancel your own emergency alert')
+  }
+
+  if (existing.emergencyLog.status === 'RESOLVED') {
+    return existing
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('emergency_logs')
+    .update({ status: 'RESOLVED', resolved_at: new Date().toISOString() })
+    .eq('id', input.emergencyLogId)
+    .eq('user_id', input.userId)
+    .select(emergencySelect)
+    .maybeSingle()
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  if (!data) {
+    throw notFound('Emergency log was not found')
+  }
+
+  await writeEventLog({
+    actorUserId: input.userId,
+    eventType: 'emergency.cancelled',
+    severity: 'WARN',
+    resourceType: 'emergency_log',
+    resourceId: input.emergencyLogId,
     c: input.c
   })
 

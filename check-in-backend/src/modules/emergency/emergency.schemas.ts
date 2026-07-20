@@ -16,6 +16,7 @@ export const EmergencyLogSchema = z
   .object({
     id: z.string().uuid(),
     userId: z.string().uuid(),
+    workLocationId: z.string().uuid().nullable(),
     lat: z.number(),
     lng: z.number(),
     emergencyType: z.string().nullable(),
@@ -28,6 +29,34 @@ export const EmergencyLogSchema = z
     createdAt: z.string().datetime()
   })
   .openapi('EmergencyLog')
+
+/** An OPEN alert on the caller's site, with the triggering employee attached. */
+export const ActiveEmergencySchema = z
+  .object({
+    id: z.string().uuid(),
+    userId: z.string().uuid(),
+    workLocationId: z.string().uuid().nullable(),
+    lat: z.number(),
+    lng: z.number(),
+    emergencyType: z.string().nullable(),
+    message: z.string().nullable(),
+    status: EmergencyStatusSchema,
+    triggeredAt: z.string().datetime(),
+    user: z
+      .object({
+        id: z.string().uuid(),
+        fullName: z.string().nullable(),
+        employeeCode: z.string().nullable()
+      })
+      .nullable()
+  })
+  .openapi('ActiveEmergency')
+
+export const ListActiveEmergenciesResponseSchema = z
+  .object({
+    emergencies: z.array(ActiveEmergencySchema)
+  })
+  .openapi('ListActiveEmergenciesResponse')
 
 export const CreateEmergencyResponseSchema = z
   .object({

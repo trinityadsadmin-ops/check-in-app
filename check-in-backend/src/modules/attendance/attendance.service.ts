@@ -41,7 +41,7 @@ type AttendanceEventRow = {
   event_type: AttendanceEventType
   lat: number | string
   lng: number | string
-  photo_path: string
+  photo_path: string | null
   validation_status: 'VALID' | 'INVALID'
   validation_reason: string | null
   work_area_snapshot: {
@@ -337,8 +337,13 @@ export async function confirmAttendance(input: {
   await assertAttendanceActionAllowed(input.userId, input.eventType)
 
   const supabaseAdmin = requireSupabaseAdmin()
-  const upload = await getPendingUpload(input.userId, input.payload.pendingUploadId, input.eventType)
-  await assertUploadedPhotoExists(upload)
+
+  // Photo is optional: only validate the upload when the client sent one.
+  let upload: PhotoUploadRow | null = null
+  if (input.payload.pendingUploadId) {
+    upload = await getPendingUpload(input.userId, input.payload.pendingUploadId, input.eventType)
+    await assertUploadedPhotoExists(upload)
+  }
 
   const workArea = await getActiveWorkArea(input.userId)
   const point = { lat: input.payload.lat, lng: input.payload.lng }
@@ -387,9 +392,15 @@ export async function confirmAttendance(input: {
       event_type: input.eventType,
       lat: input.payload.lat,
       lng: input.payload.lng,
-      photo_upload_id: upload.id,
-      photo_bucket: env.ATTENDANCE_PHOTO_BUCKET,
-      photo_path: upload.storage_path,
+      // Omit photo columns entirely when no photo was uploaded, so photo_path
+      // stays null and photo_bucket keeps its column default.
+      ...(upload
+        ? {
+            photo_upload_id: upload.id,
+            photo_bucket: env.ATTENDANCE_PHOTO_BUCKET,
+            photo_path: upload.storage_path
+          }
+        : {}),
       validation_status: 'VALID',
       validation_reason: null,
       work_area_snapshot: {
@@ -432,10 +443,12 @@ export async function confirmAttendance(input: {
     updatedDay = data as AttendanceDayRow
   }
 
-  await supabaseAdmin
-    .from('attendance_photo_uploads')
-    .update({ status: 'COMPLETED' })
-    .eq('id', upload.id)
+  if (upload) {
+    await supabaseAdmin
+      .from('attendance_photo_uploads')
+      .update({ status: 'COMPLETED' })
+      .eq('id', upload.id)
+  }
 
   await writeEventLog({
     actorUserId: input.userId,

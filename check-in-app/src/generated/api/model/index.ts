@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './activeEmergency';
+export * from './activeEmergencyStatus';
+export * from './activeEmergencyUser';
 export * from './areaInspection';
 export * from './areaInspectionResponse';
 export * from './areaInspectionUser';
@@ -70,6 +73,7 @@ export * from './healthResponseStatus';
 export * from './importSalaryRequest';
 export * from './importSalaryResponse';
 export * from './latLngNode';
+export * from './listActiveEmergenciesResponse';
 export * from './listAreaInspectionsParams';
 export * from './listAreaInspectionsResponse';
 export * from './listAttendanceParams';

@@ -17,7 +17,8 @@ export type AttendanceEvent = {
   type: AttendanceEventType;
   lat: number;
   lng: number;
-  photoPath: string;
+  /** @nullable */
+  photoPath: string | null;
   /** @nullable */
   photoUrl: string | null;
   validationStatus: AttendanceEventValidationStatus;

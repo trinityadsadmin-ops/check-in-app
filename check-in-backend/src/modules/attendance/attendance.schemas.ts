@@ -23,7 +23,8 @@ export const CreateAttendanceUploadUrlResponseSchema = z
 
 export const ConfirmAttendanceRequestSchema = z
   .object({
-    pendingUploadId: z.string().uuid(),
+    /** Optional — attendance can be confirmed without a photo. */
+    pendingUploadId: z.string().uuid().optional(),
     lat: z.number().min(-90).max(90),
     lng: z.number().min(-180).max(180),
     capturedAt: z.string().datetime().optional()
@@ -36,7 +37,7 @@ export const AttendanceEventSchema = z
     type: AttendanceEventTypeSchema,
     lat: z.number(),
     lng: z.number(),
-    photoPath: z.string(),
+    photoPath: z.string().nullable(),
     photoUrl: z.string().url().nullable(),
     validationStatus: z.enum(['VALID', 'INVALID']),
     validationReason: z.string().nullable(),

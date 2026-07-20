@@ -30,9 +30,16 @@ import {
 import { permissions } from '../auth/permissions.js'
 import {
   CreateEmergencyRequestSchema,
-  CreateEmergencyResponseSchema
+  CreateEmergencyResponseSchema,
+  EmergencyLogIdParamSchema,
+  EmergencyLogResponseSchema,
+  ListActiveEmergenciesResponseSchema
 } from '../emergency/emergency.schemas.js'
-import { createEmergencyLog } from '../emergency/emergency.service.js'
+import {
+  cancelOwnEmergency,
+  createEmergencyLog,
+  listActiveEmergencies
+} from '../emergency/emergency.service.js'
 
 export const mobileRoutes = new OpenAPIHono<AppEnv>()
 
@@ -334,5 +341,61 @@ mobileRoutes.openapi(createEmergencyRoute, async (c) => {
       c
     }),
     201
+  )
+})
+
+const listActiveEmergenciesRoute = createRoute({
+  method: 'get',
+  path: '/emergency/active',
+  operationId: 'listActiveEmergencies',
+  tags: ['Mobile'],
+  responses: {
+    200: {
+      description: "OPEN emergency alerts on the caller's site",
+      content: {
+        'application/json': {
+          schema: ListActiveEmergenciesResponseSchema
+        }
+      }
+    },
+    ...commonErrorResponses
+  }
+})
+
+mobileRoutes.openapi(listActiveEmergenciesRoute, async (c) => {
+  ensurePermission(c, permissions.mobileEmergency)
+  return c.json(await listActiveEmergencies(c.get('currentUser').id), 200)
+})
+
+const cancelEmergencyRoute = createRoute({
+  method: 'post',
+  path: '/emergency/{emergencyLogId}/cancel',
+  operationId: 'cancelEmergency',
+  tags: ['Mobile'],
+  request: {
+    params: EmergencyLogIdParamSchema
+  },
+  responses: {
+    200: {
+      description: 'Own emergency alert resolved',
+      content: {
+        'application/json': {
+          schema: EmergencyLogResponseSchema
+        }
+      }
+    },
+    ...commonErrorResponses
+  }
+})
+
+mobileRoutes.openapi(cancelEmergencyRoute, async (c) => {
+  ensurePermission(c, permissions.mobileEmergency)
+  return c.json(
+    await cancelOwnEmergency({
+      userId: c.get('currentUser').id,
+      emergencyLogId: c.req.valid('param').emergencyLogId,
+      c
+    }),
+    200
   )
 })

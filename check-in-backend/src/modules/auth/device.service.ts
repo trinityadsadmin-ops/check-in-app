@@ -57,7 +57,10 @@ export async function enforceDeviceBinding(input: {
   const existingBinding = await getActiveDeviceBinding(input.profile.id)
 
   if (!existingBinding) {
-    const deviceUuid = randomUUID()
+    // Bind to the client-provided uuid (validated as a UUID by the request schema)
+    // so the stored binding matches what the device persists; fall back to a
+    // server-generated uuid for clients that did not send one.
+    const deviceUuid = input.deviceUuid ?? randomUUID()
     const { error } = await supabaseAdmin.from('device_bindings').insert({
       user_id: input.profile.id,
       device_uuid: deviceUuid

@@ -483,7 +483,8 @@
             "type": "number"
           },
           "photoPath": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "photoUrl": {
             "type": "string",
@@ -950,7 +951,6 @@
           }
         },
         "required": [
-          "pendingUploadId",
           "lat",
           "lng"
         ]
@@ -1085,6 +1085,11 @@
             "type": "string",
             "format": "uuid"
           },
+          "workLocationId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
           "lat": {
             "type": "number"
           },
@@ -1134,6 +1139,7 @@
         "required": [
           "id",
           "userId",
+          "workLocationId",
           "lat",
           "lng",
           "emergencyType",
@@ -1175,6 +1181,110 @@
         "required": [
           "lat",
           "lng"
+        ]
+      },
+      "ListActiveEmergenciesResponse": {
+        "type": "object",
+        "properties": {
+          "emergencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActiveEmergency"
+            }
+          }
+        },
+        "required": [
+          "emergencies"
+        ]
+      },
+      "ActiveEmergency": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workLocationId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "emergencyType": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "ACKNOWLEDGED",
+              "RESOLVED"
+            ]
+          },
+          "triggeredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "fullName": {
+                "type": "string",
+                "nullable": true
+              },
+              "employeeCode": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "fullName",
+              "employeeCode"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "workLocationId",
+          "lat",
+          "lng",
+          "emergencyType",
+          "message",
+          "status",
+          "triggeredAt",
+          "user"
+        ]
+      },
+      "EmergencyLogResponse": {
+        "type": "object",
+        "properties": {
+          "emergencyLog": {
+            "$ref": "#/components/schemas/EmergencyLog"
+          }
+        },
+        "required": [
+          "emergencyLog"
         ]
       },
       "ListUsersResponse": {
@@ -1736,17 +1846,6 @@
           "page",
           "perPage",
           "total"
-        ]
-      },
-      "EmergencyLogResponse": {
-        "type": "object",
-        "properties": {
-          "emergencyLog": {
-            "$ref": "#/components/schemas/EmergencyLog"
-          }
-        },
-        "required": [
-          "emergencyLog"
         ]
       },
       "UpdateEmergencyLogRequest": {
@@ -2986,6 +3085,97 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateEmergencyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/emergency/active": {
+      "get": {
+        "operationId": "listActiveEmergencies",
+        "tags": [
+          "Mobile"
+        ],
+        "responses": {
+          "200": {
+            "description": "OPEN emergency alerts on the caller's site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListActiveEmergenciesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/emergency/{emergencyLogId}/cancel": {
+      "post": {
+        "operationId": "cancelEmergency",
+        "tags": [
+          "Mobile"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "emergencyLogId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Own emergency alert resolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyLogResponse"
                 }
               }
             }

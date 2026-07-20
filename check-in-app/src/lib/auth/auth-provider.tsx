@@ -12,7 +12,7 @@ import {
 import { SignInRequestClientType, type SignInRequest, type User } from '@/generated/api/model'
 import { ApiError } from '@/lib/api/fetch-client'
 import { clearStoredSession, getStoredSession, setStoredSession } from '@/lib/api/session'
-import { getDeviceUuid } from '@/lib/auth/device'
+import { getDeviceUuid, setDeviceUuid } from '@/lib/auth/device'
 
 type AuthContextValue = {
   user: User | null
@@ -96,6 +96,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!response.session) {
         throw new Error('Sign-in did not return a session')
+      }
+      // Adopt the server-authoritative device uuid so the persisted value always
+      // matches the bound one (covers server-generated fallbacks and legacy binds).
+      if (response.device?.deviceUuid) {
+        setDeviceUuid(response.device.deviceUuid)
       }
       setStoredSession({
         accessToken: response.session.accessToken,

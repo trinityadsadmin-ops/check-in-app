@@ -6,13 +6,22 @@
  * OpenAPI spec version: 0.1.0
  */
 import {
-  useMutation
+  useMutation,
+  useQuery
 } from '@tanstack/react-query';
 import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  DefinedUseQueryResult,
   MutationFunction,
   QueryClient,
+  QueryFunction,
+  QueryKey,
+  UndefinedInitialDataOptions,
   UseMutationOptions,
-  UseMutationResult
+  UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult
 } from '@tanstack/react-query';
 
 import type {
@@ -27,7 +36,9 @@ import type {
   CreateEmergencyRequest,
   CreateEmergencyResponse,
   DeleteAreaInspectionResponse,
-  ErrorResponse
+  EmergencyLogResponse,
+  ErrorResponse,
+  ListActiveEmergenciesResponse
 } from '.././model';
 
 
@@ -527,6 +538,171 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       > => {
 
       const mutationOptions = getCreateEmergencyMutationOptions(options);
+
+      return useMutation(mutationOptions , queryClient);
+    }
+    export const getListActiveEmergenciesUrl = () => {
+
+
+  
+
+  return `/api/mobile/emergency/active`
+}
+
+export const listActiveEmergencies = async ( options?: RequestInit): Promise<ListActiveEmergenciesResponse> => {
+  
+  const res = await fetch(getListActiveEmergenciesUrl(),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  
+  const data: ListActiveEmergenciesResponse = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+export const getListActiveEmergenciesQueryKey = () => {
+    return [`/api/mobile/emergency/active`] as const;
+    }
+
+    
+export const getListActiveEmergenciesQueryOptions = <TData = Awaited<ReturnType<typeof listActiveEmergencies>>, TError = ErrorResponse | ErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActiveEmergencies>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListActiveEmergenciesQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listActiveEmergencies>>> = ({ signal }) => listActiveEmergencies({ ...(signal ? { signal } : {}), ...fetchOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn,   staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listActiveEmergencies>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListActiveEmergenciesQueryResult = NonNullable<Awaited<ReturnType<typeof listActiveEmergencies>>>
+export type ListActiveEmergenciesQueryError = ErrorResponse | ErrorResponse
+
+
+export function useListActiveEmergencies<TData = Awaited<ReturnType<typeof listActiveEmergencies>>, TError = ErrorResponse | ErrorResponse>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActiveEmergencies>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listActiveEmergencies>>,
+          TError,
+          Awaited<ReturnType<typeof listActiveEmergencies>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListActiveEmergencies<TData = Awaited<ReturnType<typeof listActiveEmergencies>>, TError = ErrorResponse | ErrorResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActiveEmergencies>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listActiveEmergencies>>,
+          TError,
+          Awaited<ReturnType<typeof listActiveEmergencies>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListActiveEmergencies<TData = Awaited<ReturnType<typeof listActiveEmergencies>>, TError = ErrorResponse | ErrorResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActiveEmergencies>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListActiveEmergencies<TData = Awaited<ReturnType<typeof listActiveEmergencies>>, TError = ErrorResponse | ErrorResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActiveEmergencies>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListActiveEmergenciesQueryOptions(options)
+
+  const query = useQuery(queryOptions , queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+export const getCancelEmergencyUrl = (emergencyLogId: string,) => {
+
+
+  
+
+  return `/api/mobile/emergency/${emergencyLogId}/cancel`
+}
+
+export const cancelEmergency = async (emergencyLogId: string, options?: RequestInit): Promise<EmergencyLogResponse> => {
+  
+  const res = await fetch(getCancelEmergencyUrl(emergencyLogId),
+  {      
+    ...options,
+    method: 'POST'
+    
+    
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  
+  const data: EmergencyLogResponse = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+export const getCancelEmergencyMutationOptions = <TError = ErrorResponse | ErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelEmergency>>, TError,{emergencyLogId: string}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelEmergency>>, TError,{emergencyLogId: string}, TContext> => {
+
+const mutationKey = ['cancelEmergency'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelEmergency>>, {emergencyLogId: string}> = (props) => {
+          const {emergencyLogId} = props ?? {};
+
+          return  cancelEmergency(emergencyLogId,fetchOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelEmergencyMutationResult = NonNullable<Awaited<ReturnType<typeof cancelEmergency>>>
+    
+    export type CancelEmergencyMutationError = ErrorResponse | ErrorResponse
+
+    export const useCancelEmergency = <TError = ErrorResponse | ErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelEmergency>>, TError,{emergencyLogId: string}, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelEmergency>>,
+        TError,
+        {emergencyLogId: string},
+        TContext
+      > => {
+
+      const mutationOptions = getCancelEmergencyMutationOptions(options);
 
       return useMutation(mutationOptions , queryClient);
     }
