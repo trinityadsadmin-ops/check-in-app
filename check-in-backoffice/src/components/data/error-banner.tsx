@@ -1,10 +1,10 @@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getErrorMessage } from '@/lib/api/errors'
 
-export function ErrorBanner({ error }: { error: unknown }) {
+export function ErrorBanner({ error, message }: { error: unknown; message?: string }) {
   return (
     <Alert variant="destructive">
-      <AlertDescription>{getErrorMessage(error)}</AlertDescription>
+      <AlertDescription>{message ?? getErrorMessage(error)}</AlertDescription>
     </Alert>
   )
 }

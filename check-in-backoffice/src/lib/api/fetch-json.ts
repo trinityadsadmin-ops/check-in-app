@@ -6,6 +6,22 @@ type FetchJsonOptions = Omit<RequestInit, 'body'> & {
   withAuth?: boolean
 }
 
+type ErrorPayload = {
+  error?: {
+    code?: unknown
+    message?: unknown
+  }
+}
+
+function getPayloadErrorCode(payload: unknown) {
+  if (typeof payload !== 'object' || payload === null) {
+    return undefined
+  }
+
+  const error = (payload as ErrorPayload).error
+  return typeof error?.code === 'string' ? error.code : undefined
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -15,6 +31,18 @@ export class ApiError extends Error {
     super(message)
     this.name = 'ApiError'
   }
+
+  get code() {
+    return getPayloadErrorCode(this.payload)
+  }
+}
+
+export function getApiErrorCode(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.code
+  }
+
+  return getPayloadErrorCode(error)
 }
 
 export async function fetchJson<TResponse>(

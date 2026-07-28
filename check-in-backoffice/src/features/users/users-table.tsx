@@ -12,6 +12,23 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from '@/components/ui/command'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -28,6 +45,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Table,
   TableBody,
@@ -37,7 +55,8 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ApiError } from '@/lib/api/fetch-json'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ApiError, getApiErrorCode } from '@/lib/api/fetch-json'
 import { getErrorMessage } from '@/lib/api/errors'
 import type { UserPermissionOverride } from '@/generated/api/model'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
@@ -56,11 +75,15 @@ import {
 import { getAuthMe } from '@/lib/api/auth'
 import { UserCombobox } from './user-combobox'
 
-type UsersTab = 'list' | 'create' | 'permissions'
+type UsersTab = 'list' | 'permissions'
 
-function showActionError(title: string, error: unknown) {
+function showActionError(
+  title: string,
+  error: unknown,
+  resolveErrorCode: (code: string) => string | undefined
+) {
   toast.error(title, {
-    description: getErrorMessage(error)
+    description: getErrorMessage(error, resolveErrorCode)
   })
 }
 
@@ -68,6 +91,12 @@ export function UsersTable() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { locale, t } = useI18n()
+  const resolveErrorCode = (code: string) => {
+    const key = `errors.${code}`
+    const message = t(key)
+
+    return message === key ? undefined : message
+  }
   const [search, setSearch] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -75,9 +104,11 @@ export function UsersTable() {
   const [employeeCode, setEmployeeCode] = useState('')
   const [roleId, setRoleId] = useState('')
   const [selectedUserId, setSelectedUserId] = useState('')
-  const [permissionKey, setPermissionKey] = useState('')
+  const [isPermissionPickerOpen, setIsPermissionPickerOpen] = useState(false)
+  const [permissionSearch, setPermissionSearch] = useState('')
   const [grantedPermissionKeys, setGrantedPermissionKeys] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState<UsersTab>('list')
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [userPage, setUserPage] = useState(1)
   const [usersPerPage, setUsersPerPage] = useState(20)
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
@@ -105,10 +136,6 @@ export function UsersTable() {
 
     if (canReadUsers) {
       tabs.push('list')
-    }
-
-    if (canOpenCreateUsers) {
-      tabs.push('create')
     }
 
     if (canReadPermissions) {
@@ -157,12 +184,13 @@ export function UsersTable() {
       setPassword('')
       setFullName('')
       setEmployeeCode('')
+      setIsCreateDialogOpen(false)
       setActiveTab('list')
       setUserPage(1)
       queryClient.invalidateQueries({ queryKey: ['backoffice-users'] })
       toast.success(t('users.toastCreated'))
     },
-    onError: (error) => showActionError(t('toast.actionFailed'), error)
+    onError: (error) => showActionError(t('toast.actionFailed'), error, resolveErrorCode)
   })
   const updateMutation = useMutation({
     mutationFn: (input: { userId: string; roleId?: string; isActive?: boolean }) =>
@@ -175,7 +203,7 @@ export function UsersTable() {
       queryClient.invalidateQueries({ queryKey: ['user-effective-permissions', input.userId] })
       toast.success(t('users.toastUpdated'))
     },
-    onError: (error) => showActionError(t('toast.actionFailed'), error)
+    onError: (error) => showActionError(t('toast.actionFailed'), error, resolveErrorCode)
   })
   const resetMutation = useMutation({
     mutationFn: (userId: string) => resetUserDevice(userId, t('audit.resetDeviceReason')),
@@ -183,7 +211,7 @@ export function UsersTable() {
       queryClient.invalidateQueries({ queryKey: ['backoffice-users'] })
       toast.success(t('users.toastDeviceReset'))
     },
-    onError: (error) => showActionError(t('toast.actionFailed'), error)
+    onError: (error) => showActionError(t('toast.actionFailed'), error, resolveErrorCode)
   })
   const saveOverridesMutation = useMutation({
     mutationFn: () => {
@@ -211,7 +239,7 @@ export function UsersTable() {
       queryClient.invalidateQueries({ queryKey: ['user-effective-permissions', selectedUserId] })
       toast.success(t('users.toastPermissionsSaved'))
     },
-    onError: (error) => showActionError(t('toast.actionFailed'), error)
+    onError: (error) => showActionError(t('toast.actionFailed'), error, resolveErrorCode)
   })
 
   const users = useMemo(() => query.data?.users ?? [], [query.data?.users])
@@ -232,6 +260,35 @@ export function UsersTable() {
     () => permissions.filter((permission) => !grantedPermissionKeys.includes(permission.key)),
     [grantedPermissionKeys, permissions]
   )
+  const filteredAvailablePermissions = useMemo(() => {
+    const searchValue = permissionSearch.trim().toLowerCase()
+
+    if (!searchValue) {
+      return availablePermissions
+    }
+
+    return availablePermissions.filter(
+      (permission) =>
+        permission.key.toLowerCase().includes(searchValue) ||
+        permission.name.toLowerCase().includes(searchValue)
+    )
+  }, [availablePermissions, permissionSearch])
+  const employeeCodeError =
+    createMutation.isError && getApiErrorCode(createMutation.error) === 'EMPLOYEE_CODE_ALREADY_EXISTS'
+      ? resolveErrorCode('EMPLOYEE_CODE_ALREADY_EXISTS')
+      : undefined
+  const hasPermissionChanges = useMemo(() => {
+    const savedPermissionKeys =
+      effectivePermissionsQuery.data?.permissions
+        .filter((permission) => permission.granted)
+        .map((permission) => permission.permission.key)
+        .sort() ?? []
+
+    return (
+      savedPermissionKeys.length !== grantedPermissionKeys.length ||
+      savedPermissionKeys.some((permissionKey, index) => permissionKey !== grantedPermissionKeys[index])
+    )
+  }, [effectivePermissionsQuery.data?.permissions, grantedPermissionKeys])
   useEffect(() => {
     if (query.error instanceof ApiError && query.error.status === 401) {
       router.replace('/login')
@@ -259,12 +316,6 @@ export function UsersTable() {
   }, [roleId, roles])
 
   useEffect(() => {
-    if (!permissionKey && permissions[0]) {
-      setPermissionKey(permissions[0].key)
-    }
-  }, [permissionKey, permissions])
-
-  useEffect(() => {
     setGrantedPermissionKeys(
       effectivePermissionsQuery.data?.permissions
         .filter((permission) => permission.granted)
@@ -272,22 +323,12 @@ export function UsersTable() {
     )
   }, [effectivePermissionsQuery.data?.permissions])
 
-  useEffect(() => {
-    if (availablePermissions.some((permission) => permission.key === permissionKey)) {
-      return
-    }
-
-    setPermissionKey(availablePermissions[0]?.key ?? '')
-  }, [availablePermissions, permissionKey])
-
-  function addPermission() {
-    if (!permissionKey) {
-      return
-    }
-
+  function addPermission(permissionKeyToAdd: string) {
     setGrantedPermissionKeys((current) =>
-      current.includes(permissionKey) ? current : [...current, permissionKey].sort()
+      current.includes(permissionKeyToAdd) ? current : [...current, permissionKeyToAdd].sort()
     )
+    setIsPermissionPickerOpen(false)
+    setPermissionSearch('')
   }
 
   function removePermission(permissionKeyToRemove: string) {
@@ -301,113 +342,28 @@ export function UsersTable() {
   }
 
   return (
-    <Tabs
-      value={activeTab}
-      onValueChange={(value) => setActiveTab(value as UsersTab)}
-      className="gap-6"
-    >
-      <TabsList>
-        {canReadUsers ? <TabsTrigger value="list">{t('users.tabList')}</TabsTrigger> : null}
-        {canOpenCreateUsers ? <TabsTrigger value="create">{t('users.tabCreate')}</TabsTrigger> : null}
-        {canReadPermissions ? (
-          <TabsTrigger value="permissions">{t('users.tabPermissions')}</TabsTrigger>
-        ) : null}
-      </TabsList>
-
-      {canOpenCreateUsers ? (
-      <TabsContent value="create">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('users.createTitle')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form
-              className="grid gap-3 md:grid-cols-3"
-              onSubmit={(event) => {
-                event.preventDefault()
-                createMutation.mutate()
-              }}
-            >
-              {!canCreateUsers ? (
-                <Alert variant="destructive" className="md:col-span-3">
-                  <AlertDescription>{t('users.missingCreatePermissions')}</AlertDescription>
-                </Alert>
-              ) : null}
-              <div className="grid gap-2">
-                <Label htmlFor="create-user-email">{t('auth.email')}</Label>
-                <Input
-                  id="create-user-email"
-                  type="email"
-                  placeholder={t('auth.email')}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="create-user-password">{t('users.temporaryPassword')}</Label>
-                <Input
-                  id="create-user-password"
-                  type="password"
-                  placeholder={t('users.temporaryPassword')}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="create-user-role">{t('common.role')}</Label>
-                <Select value={roleId} onValueChange={setRoleId} disabled={!canAssignRoles}>
-                  <SelectTrigger id="create-user-role">
-                    <SelectValue placeholder={t('common.role')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((role) => (
-                      <SelectItem key={role.id} value={role.id}>
-                        {role.key}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="create-user-full-name">{t('users.fullName')}</Label>
-                <Input
-                  id="create-user-full-name"
-                  placeholder={t('users.fullName')}
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="create-user-employee-code">{t('users.employeeCode')}</Label>
-                <Input
-                  id="create-user-employee-code"
-                  placeholder={t('users.employeeCode')}
-                  value={employeeCode}
-                  onChange={(event) => setEmployeeCode(event.target.value)}
-                />
-              </div>
-              <div className="flex items-end">
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={createMutation.isPending || !roleId || !canCreateUsers}
-                >
-                  <Plus className="size-4" />
-                  {t('common.create')}
-                </Button>
-              </div>
-            </form>
-            {createMutation.isError ? (
-              <div className="mt-3">
-                <ErrorBanner error={createMutation.error} />
-              </div>
+    <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as UsersTab)}
+        className="gap-6"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <TabsList>
+            {canReadUsers ? <TabsTrigger value="list">{t('users.tabList')}</TabsTrigger> : null}
+            {canReadPermissions ? (
+              <TabsTrigger value="permissions">{t('users.tabPermissions')}</TabsTrigger>
             ) : null}
-          </CardContent>
-        </Card>
-      </TabsContent>
-      ) : null}
+          </TabsList>
+          {canOpenCreateUsers ? (
+            <DialogTrigger asChild>
+              <Button type="button">
+                <Plus className="size-4" />
+                {t('users.tabCreate')}
+              </Button>
+            </DialogTrigger>
+          ) : null}
+        </div>
 
       {canReadUsers ? (
       <TabsContent value="list">
@@ -609,68 +565,20 @@ export function UsersTable() {
       {canReadPermissions ? (
       <TabsContent value="permissions">
         <Card>
-        <CardHeader>
+        <CardHeader className="gap-4">
           <CardTitle>{t('users.effectivePermissions')}</CardTitle>
+          <div className="grid gap-2 sm:max-w-md">
+            <Label htmlFor="permission-user">{t('common.user')}</Label>
+            <UserCombobox
+              value={selectedUserId}
+              selectedUser={effectivePermissionsQuery.data?.user}
+              disabled={!canReadUsers}
+              placeholder={t('users.selectUser')}
+              onValueChange={setSelectedUserId}
+            />
+          </div>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-            <div className="grid gap-2">
-              <Label htmlFor="permission-user">{t('common.user')}</Label>
-              <UserCombobox
-                value={selectedUserId}
-                selectedUser={effectivePermissionsQuery.data?.user}
-                disabled={!canReadUsers}
-                placeholder={t('users.selectUser')}
-                onValueChange={setSelectedUserId}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="permission-key">{t('users.permission')}</Label>
-              <Select
-                value={permissionKey || 'NONE'}
-                disabled={
-                  !canUpdatePermissions ||
-                  !selectedUserId ||
-                  !effectivePermissionsQuery.data ||
-                  availablePermissions.length === 0
-                }
-                onValueChange={(value) => setPermissionKey(value === 'NONE' ? '' : value)}
-              >
-                <SelectTrigger id="permission-key">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePermissions.length > 0 ? (
-                    availablePermissions.map((permission) => (
-                      <SelectItem key={permission.id} value={permission.key}>
-                        {permission.key}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="NONE">{t('users.noPermissionsToAdd')}</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={
-                  !canUpdatePermissions ||
-                  !selectedUserId ||
-                  !permissionKey ||
-                  !effectivePermissionsQuery.data ||
-                  availablePermissions.length === 0
-                }
-                onClick={addPermission}
-              >
-                <Plus className="size-4" />
-                {t('common.add')}
-              </Button>
-            </div>
-          </div>
-
           {effectivePermissionsQuery.isLoading ? <TableSkeleton rows={4} /> : null}
           {effectivePermissionsQuery.isError ? (
             <ErrorBanner error={effectivePermissionsQuery.error} />
@@ -678,62 +586,223 @@ export function UsersTable() {
           {!selectedUserId ? <EmptyState label={t('users.emptyPermissions')} /> : null}
 
           {effectivePermissionsQuery.data ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('users.permission')}</TableHead>
-                  <TableHead>{t('users.permissionName')}</TableHead>
-                  <TableHead className="w-28 text-right">{t('common.action')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {grantedPermissionKeys.map((grantedPermissionKey) => {
-                  const permission = permissionByKey.get(grantedPermissionKey)
+            <>
+              <div className="flex flex-col gap-3 border-y py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Badge variant="outline">
+                    {effectivePermissionsQuery.data.user.role.key}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {grantedPermissionKeys.length} {t('users.permissionsAssigned')}
+                  </span>
+                </div>
+                <Popover open={isPermissionPickerOpen} onOpenChange={setIsPermissionPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={
+                        !canUpdatePermissions ||
+                        availablePermissions.length === 0 ||
+                        saveOverridesMutation.isPending
+                      }
+                    >
+                      <Plus className="size-4" />
+                      {t('common.add')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0" align="end">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        value={permissionSearch}
+                        placeholder={t('users.permission')}
+                        onValueChange={setPermissionSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>{t('users.noPermissionsToAdd')}</CommandEmpty>
+                        <CommandGroup>
+                          {filteredAvailablePermissions.map((permission) => (
+                            <CommandItem
+                              key={permission.id}
+                              value={permission.key}
+                              onSelect={() => addPermission(permission.key)}
+                            >
+                              <span className="grid min-w-0 gap-0.5">
+                                <span className="truncate">{permission.name}</span>
+                                <span className="truncate font-mono text-xs text-muted-foreground">
+                                  {permission.key}
+                                </span>
+                              </span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-                  return (
-                    <TableRow key={grantedPermissionKey}>
-                      <TableCell className="font-mono text-xs">{grantedPermissionKey}</TableCell>
-                      <TableCell>{permission?.name ?? '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={!canUpdatePermissions}
-                          onClick={() => removePermission(grantedPermissionKey)}
+              {grantedPermissionKeys.length > 0 ? (
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {grantedPermissionKeys.map((grantedPermissionKey) => {
+                    const permission = permissionByKey.get(grantedPermissionKey)
+
+                    return (
+                      <div
+                        key={grantedPermissionKey}
+                        className="flex min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2"
                       >
-                          <Trash2 className="size-4" />
-                          {t('common.remove')}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">{permission?.name ?? '-'}</div>
+                          <div className="truncate font-mono text-xs text-muted-foreground">
+                            {grantedPermissionKey}
+                          </div>
+                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label={t('common.remove')}
+                              disabled={!canUpdatePermissions || saveOverridesMutation.isPending}
+                              onClick={() => removePermission(grantedPermissionKey)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('common.remove')}</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <EmptyState label={t('users.noGrantedPermissions')} />
+              )}
+
+              {saveOverridesMutation.isError ? <ErrorBanner error={saveOverridesMutation.error} /> : null}
+
+              <div className="flex justify-end border-t pt-4">
+                <Button
+                  disabled={
+                    saveOverridesMutation.isPending || !canUpdatePermissions || !hasPermissionChanges
+                  }
+                  onClick={() => saveOverridesMutation.mutate()}
+                >
+                  <Save className="size-4" />
+                  {t('users.savePermissions')}
+                </Button>
+              </div>
+            </>
           ) : null}
-
-          {effectivePermissionsQuery.data && grantedPermissionKeys.length === 0 ? (
-            <EmptyState label={t('users.noGrantedPermissions')} />
-          ) : null}
-
-          {saveOverridesMutation.isError ? <ErrorBanner error={saveOverridesMutation.error} /> : null}
-
-          <Button
-            className="w-fit"
-            disabled={
-              !selectedUserId || !effectivePermissionsQuery.data || saveOverridesMutation.isPending
-              || !canUpdatePermissions
-            }
-            onClick={() => saveOverridesMutation.mutate()}
-          >
-            <Save className="size-4" />
-            {t('users.savePermissions')}
-          </Button>
         </CardContent>
         </Card>
       </TabsContent>
       ) : null}
-    </Tabs>
+      </Tabs>
+
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t('users.createTitle')}</DialogTitle>
+        </DialogHeader>
+        <form
+          className="grid gap-4 sm:grid-cols-2"
+          onSubmit={(event) => {
+            event.preventDefault()
+            createMutation.mutate()
+          }}
+        >
+          {!canCreateUsers ? (
+            <Alert variant="destructive" className="sm:col-span-2">
+              <AlertDescription>{t('users.missingCreatePermissions')}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="grid gap-2">
+            <Label htmlFor="create-user-email">{t('auth.email')}</Label>
+            <Input
+              id="create-user-email"
+              type="email"
+              placeholder={t('auth.email')}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="create-user-password">{t('users.temporaryPassword')}</Label>
+            <Input
+              id="create-user-password"
+              type="password"
+              placeholder={t('users.temporaryPassword')}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="create-user-role">{t('common.role')}</Label>
+            <Select value={roleId} onValueChange={setRoleId} disabled={!canAssignRoles}>
+              <SelectTrigger id="create-user-role">
+                <SelectValue placeholder={t('common.role')} />
+              </SelectTrigger>
+              <SelectContent>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.key}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="create-user-full-name">{t('users.fullName')}</Label>
+            <Input
+              id="create-user-full-name"
+              placeholder={t('users.fullName')}
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+            />
+          </div>
+          <div className="grid gap-2 sm:col-span-2">
+            <Label htmlFor="create-user-employee-code">{t('users.employeeCode')}</Label>
+            <Input
+              id="create-user-employee-code"
+              placeholder={t('users.employeeCode')}
+              value={employeeCode}
+              aria-invalid={Boolean(employeeCodeError)}
+              onChange={(event) => {
+                setEmployeeCode(event.target.value)
+                createMutation.reset()
+              }}
+            />
+            {employeeCodeError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {employeeCodeError}
+              </p>
+            ) : null}
+          </div>
+          {createMutation.isError && !employeeCodeError ? (
+            <div className="sm:col-span-2">
+              <ErrorBanner
+                error={createMutation.error}
+                message={getErrorMessage(createMutation.error, resolveErrorCode)}
+              />
+            </div>
+          ) : null}
+          <DialogFooter className="sm:col-span-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" disabled={createMutation.isPending}>
+                {t('common.cancel')}
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={createMutation.isPending || !roleId || !canCreateUsers}>
+              <Plus className="size-4" />
+              {t('common.create')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

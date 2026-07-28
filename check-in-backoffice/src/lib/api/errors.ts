@@ -1,6 +1,16 @@
-import { ApiError } from './fetch-json'
+import { ApiError, getApiErrorCode } from './fetch-json'
 
-export function getErrorMessage(error: unknown) {
+export function getErrorMessage(
+  error: unknown,
+  resolveErrorCode?: (code: string) => string | undefined
+) {
+  const code = getApiErrorCode(error)
+  const localizedMessage = code ? resolveErrorCode?.(code) : undefined
+
+  if (localizedMessage) {
+    return localizedMessage
+  }
+
   if (error instanceof ApiError) {
     return error.message
   }

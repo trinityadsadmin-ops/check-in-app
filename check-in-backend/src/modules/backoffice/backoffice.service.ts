@@ -1,4 +1,9 @@
-import { badRequest, forbidden, notFound } from '../../core/errors/http-error.js'
+import {
+  badRequest,
+  employeeCodeAlreadyExists,
+  forbidden,
+  notFound
+} from '../../core/errors/http-error.js'
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { getActiveDeviceBinding, resetDeviceBinding } from '../auth/device.service.js'
 import { writeAuditLog } from '../logs/logs.service.js'
@@ -87,6 +92,36 @@ function first<T>(value: T | T[] | null | undefined): T | null {
   }
 
   return value ?? null
+}
+
+function isDuplicateEmployeeCodeError(error: unknown) {
+  if (typeof error !== 'object' || error === null) {
+    return false
+  }
+
+  const databaseError = error as {
+    code?: unknown
+    message?: unknown
+    details?: unknown
+  }
+
+  if (databaseError.code !== '23505') {
+    return false
+  }
+
+  return [databaseError.message, databaseError.details].some(
+    (value) =>
+      typeof value === 'string' &&
+      (value.includes('profiles_employee_code_key') || value.includes('employee_code'))
+  )
+}
+
+function profileWriteError(error: unknown) {
+  if (isDuplicateEmployeeCodeError(error)) {
+    return employeeCodeAlreadyExists()
+  }
+
+  return badRequest('Unable to save user profile')
 }
 
 function mapRole(row: RoleRow) {
@@ -274,7 +309,7 @@ export async function createBackofficeUser(input: {
 
   if (profileError) {
     await supabaseAdmin.auth.admin.deleteUser(createdUser.user.id)
-    throw badRequest(profileError.message)
+    throw profileWriteError(profileError)
   }
 
   await writeAuditLog({
@@ -328,7 +363,7 @@ export async function updateBackofficeUser(input: {
   const { error } = await supabaseAdmin.from('profiles').update(updates).eq('id', input.userId)
 
   if (error) {
-    throw badRequest(error.message)
+    throw profileWriteError(error)
   }
 
   await writeAuditLog({

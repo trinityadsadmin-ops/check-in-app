@@ -4,6 +4,7 @@ export type ErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'CONFLICT'
+  | 'EMPLOYEE_CODE_ALREADY_EXISTS'
   | 'RATE_LIMITED'
   | 'INTERNAL_SERVER_ERROR'
 
@@ -33,6 +34,9 @@ export const notFound = (message = 'Resource not found') =>
 
 export const conflict = (message: string, details?: unknown) =>
   new AppError(409, 'CONFLICT', message, details)
+
+export const employeeCodeAlreadyExists = () =>
+  new AppError(409, 'EMPLOYEE_CODE_ALREADY_EXISTS', 'Employee code already exists')
 
 export const rateLimited = (message = 'Too many requests') =>
   new AppError(429, 'RATE_LIMITED', message)
