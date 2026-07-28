@@ -49,8 +49,11 @@ export const ListFrontendPayslipsResponseSchema = z
 
 export const FrontendWorkAreaResponseSchema = z
   .object({
-    workArea: EmployeeWorkAreaSchema.nullable(),
-    workLocation: WorkLocationSchema.nullable()
+    // Keep the shared OpenAPI components non-nullable for backoffice APIs.
+    // Calling .nullable() on their registered schemas changes the generated
+    // component metadata, so frontend-only nullable responses use local shapes.
+    workArea: z.object(EmployeeWorkAreaSchema.shape).nullable(),
+    workLocation: z.object(WorkLocationSchema.shape).nullable()
   })
   .openapi('FrontendWorkAreaResponse')
 

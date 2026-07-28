@@ -49,8 +49,25 @@ type WorkLocationRow = {
   id: string
   name: string
   description: string | null
+  area_nodes: Array<{ lat: number; lng: number }>
   is_active: boolean
   created_at: string
+}
+
+type WorkLocationUserRow = {
+  user_id: string
+  created_at: string
+  user?: {
+    id: string
+    email: string | null
+    full_name: string | null
+    employee_code: string | null
+  } | {
+    id: string
+    email: string | null
+    full_name: string | null
+    employee_code: string | null
+  }[] | null
 }
 
 type EmployeeWorkAreaRow = {
@@ -170,8 +187,25 @@ function mapWorkLocation(row: WorkLocationRow) {
     id: row.id,
     name: row.name,
     description: row.description,
+    areaNodes: row.area_nodes,
     isActive: row.is_active,
     createdAt: row.created_at
+  }
+}
+
+function mapWorkLocationUser(row: WorkLocationUserRow) {
+  const user = first(row.user)
+
+  if (!user) {
+    return null
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.full_name,
+    employeeCode: user.employee_code,
+    assignedAt: row.created_at
   }
 }
 
@@ -608,7 +642,7 @@ export async function listWorkLocations() {
   const supabaseAdmin = requireSupabaseAdmin()
   const { data, error } = await supabaseAdmin
     .from('work_locations')
-    .select('id,name,description,is_active,created_at')
+    .select('id,name,description,area_nodes,is_active,created_at')
     .order('name', { ascending: true })
 
   if (error) {
@@ -629,10 +663,11 @@ export async function createWorkLocation(input: {
     .insert({
       name: input.payload.name,
       description: input.payload.description ?? null,
+      area_nodes: input.payload.areaNodes,
       is_active: input.payload.isActive,
       created_by: input.actorUserId
     })
-    .select('id,name,description,is_active,created_at')
+    .select('id,name,description,area_nodes,is_active,created_at')
     .single()
 
   if (error || !data) {
@@ -668,6 +703,10 @@ export async function updateWorkLocation(input: {
     updates.description = input.payload.description
   }
 
+  if (input.payload.areaNodes !== undefined) {
+    updates.area_nodes = input.payload.areaNodes
+  }
+
   if (input.payload.isActive !== undefined) {
     updates.is_active = input.payload.isActive
   }
@@ -676,7 +715,7 @@ export async function updateWorkLocation(input: {
     .from('work_locations')
     .update(updates)
     .eq('id', input.workLocationId)
-    .select('id,name,description,is_active,created_at')
+    .select('id,name,description,area_nodes,is_active,created_at')
     .maybeSingle()
 
   if (error) {
@@ -715,6 +754,28 @@ export async function getUserWorkArea(userId: string) {
   return { workArea: data ? mapWorkArea(data as EmployeeWorkAreaRow) : null }
 }
 
+export async function listWorkLocationUsers(workLocationId: string) {
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { data, error } = await supabaseAdmin
+    .from('employee_work_areas')
+    .select(
+      'user_id,created_at,user:profiles!employee_work_areas_user_id_fkey(id,email,full_name,employee_code)'
+    )
+    .eq('work_location_id', workLocationId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  return {
+    users: ((data ?? []) as WorkLocationUserRow[])
+      .map(mapWorkLocationUser)
+      .filter((user): user is NonNullable<typeof user> => user !== null)
+  }
+}
+
 export async function setUserWorkArea(input: {
   userId: string
   payload: SetEmployeeWorkAreaRequest
@@ -722,12 +783,27 @@ export async function setUserWorkArea(input: {
   c?: Context<AppEnv> | undefined
 }) {
   const supabaseAdmin = requireSupabaseAdmin()
+  const { data: workLocation, error: workLocationError } = await supabaseAdmin
+    .from('work_locations')
+    .select('id,name,description,area_nodes,is_active,created_at')
+    .eq('id', input.payload.workLocationId)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (workLocationError) {
+    throw badRequest(workLocationError.message)
+  }
+
+  if (!workLocation) {
+    throw notFound('Active work location was not found')
+  }
+
   const existing = await getUserWorkArea(input.userId)
 
   const values = {
     user_id: input.userId,
     work_location_id: input.payload.workLocationId,
-    area_nodes: input.payload.areaNodes,
+    area_nodes: (workLocation as WorkLocationRow).area_nodes,
     is_active: input.payload.isActive,
     created_by: input.actorUserId
   }
@@ -760,6 +836,45 @@ export async function setUserWorkArea(input: {
   })
 
   return { workArea: mapWorkArea(data as EmployeeWorkAreaRow) }
+}
+
+export async function unassignWorkLocationUser(input: {
+  workLocationId: string
+  userId: string
+  actorUserId: string
+  c?: Context<AppEnv> | undefined
+}) {
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { data, error } = await supabaseAdmin
+    .from('employee_work_areas')
+    .update({ is_active: false })
+    .eq('work_location_id', input.workLocationId)
+    .eq('user_id', input.userId)
+    .eq('is_active', true)
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  if (!data) {
+    throw notFound('Employee assignment was not found')
+  }
+
+  await writeAuditLog({
+    actorUserId: input.actorUserId,
+    action: 'work_location.user_unassign',
+    resourceType: 'employee_work_area',
+    resourceId: data.id,
+    metadata: {
+      userId: input.userId,
+      workLocationId: input.workLocationId
+    },
+    c: input.c
+  })
+
+  return { unassigned: true }
 }
 
 export async function listAuditLogs(query: LogsQuery) {

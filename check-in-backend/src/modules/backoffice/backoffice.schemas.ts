@@ -9,6 +9,11 @@ export const WorkLocationIdParamSchema = z.object({
   workLocationId: z.string().uuid()
 })
 
+export const WorkLocationUserParamSchema = z.object({
+  workLocationId: z.string().uuid(),
+  userId: z.string().uuid()
+})
+
 export const ListUsersQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(20),
@@ -155,11 +160,19 @@ export const ResetDeviceResponseSchema = z
   })
   .openapi('ResetDeviceResponse')
 
+export const LatLngNodeSchema = z
+  .object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180)
+  })
+  .openapi('LatLngNode')
+
 export const WorkLocationSchema = z
   .object({
     id: z.string().uuid(),
     name: z.string(),
     description: z.string().nullable(),
+    areaNodes: z.array(LatLngNodeSchema).length(4),
     isActive: z.boolean(),
     createdAt: z.string().datetime()
   })
@@ -169,13 +182,19 @@ export const CreateWorkLocationRequestSchema = z
   .object({
     name: z.string().min(1).max(160),
     description: z.string().max(1000).optional(),
+    areaNodes: z.array(LatLngNodeSchema).length(4),
     isActive: z.boolean().default(true)
   })
   .openapi('CreateWorkLocationRequest')
 
-export const UpdateWorkLocationRequestSchema = CreateWorkLocationRequestSchema.partial().openapi(
-  'UpdateWorkLocationRequest'
-)
+export const UpdateWorkLocationRequestSchema = z
+  .object({
+    name: z.string().min(1).max(160).optional(),
+    description: z.string().max(1000).nullable().optional(),
+    areaNodes: z.array(LatLngNodeSchema).length(4).optional(),
+    isActive: z.boolean().optional()
+  })
+  .openapi('UpdateWorkLocationRequest')
 
 export const ListWorkLocationsResponseSchema = z
   .object({
@@ -189,12 +208,27 @@ export const WorkLocationResponseSchema = z
   })
   .openapi('WorkLocationResponse')
 
-export const LatLngNodeSchema = z
+export const WorkLocationUserSchema = z
   .object({
-    lat: z.number().min(-90).max(90),
-    lng: z.number().min(-180).max(180)
+    id: z.string().uuid(),
+    email: z.string().email().nullable(),
+    fullName: z.string().nullable(),
+    employeeCode: z.string().nullable(),
+    assignedAt: z.string().datetime()
   })
-  .openapi('LatLngNode')
+  .openapi('WorkLocationUser')
+
+export const WorkLocationUsersResponseSchema = z
+  .object({
+    users: z.array(WorkLocationUserSchema)
+  })
+  .openapi('WorkLocationUsersResponse')
+
+export const UnassignWorkLocationUserResponseSchema = z
+  .object({
+    unassigned: z.boolean()
+  })
+  .openapi('UnassignWorkLocationUserResponse')
 
 export const EmployeeWorkAreaSchema = z
   .object({
@@ -211,7 +245,6 @@ export const EmployeeWorkAreaSchema = z
 export const SetEmployeeWorkAreaRequestSchema = z
   .object({
     workLocationId: z.string().uuid(),
-    areaNodes: z.array(LatLngNodeSchema).length(4),
     isActive: z.boolean().default(true)
   })
   .openapi('SetEmployeeWorkAreaRequest')

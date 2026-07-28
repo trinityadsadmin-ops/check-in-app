@@ -7,14 +7,15 @@
  */
 import type { LatLngNode } from './latLngNode';
 
-export interface CreateWorkLocationRequest {
-  /**
-   * @minLength 1
-   * @maxLength 160
-   */
-  name: string;
-  /** @maxLength 1000 */
-  description?: string;
+/**
+ * @nullable
+ */
+export type FrontendWorkAreaResponseWorkArea = {
+  id: string;
+  userId: string;
+  workLocationId: string;
   areaNodes: LatLngNode[];
-  isActive?: boolean;
-}
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+} | null;

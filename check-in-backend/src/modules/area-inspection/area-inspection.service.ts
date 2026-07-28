@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { env } from '../../config/env.js'
-import { badRequest, forbidden, notFound } from '../../core/errors/http-error.js'
+import {
+  areaInspectionReviewNoteRequired,
+  badRequest,
+  forbidden,
+  notFound
+} from '../../core/errors/http-error.js'
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { getBangkokDate } from '../attendance/geo.js'
 import { writeAuditLog, writeEventLog } from '../logs/logs.service.js'
@@ -8,7 +13,8 @@ import type {
   CreateAreaInspectionRequest,
   CreateAreaInspectionUploadUrlRequest,
   ListAreaInspectionsQuery,
-  ListSiteAreaInspectionsQuery
+  ListSiteAreaInspectionsQuery,
+  ReviewAreaInspectionRequest
 } from './area-inspection.schemas.js'
 import type { Context } from 'hono'
 import type { AppEnv } from '../../types/hono.js'
@@ -48,13 +54,17 @@ type AreaInspectionRow = {
   photo_bucket: string
   photo_path: string
   captured_at: string
+  review_status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  review_note: string | null
+  reviewed_at: string | null
+  reviewed_by: string | null
   created_at: string
   user?: InspectionProfileRow | InspectionProfileRow[] | null
   work_location?: InspectionLocationRow | InspectionLocationRow[] | null
 }
 
 const inspectionSelect =
-  'id,user_id,work_location_id,lat,lng,notes,photo_bucket,photo_path,captured_at,created_at,user:profiles!area_inspections_user_id_fkey(id,email,full_name,employee_code),work_location:work_locations!area_inspections_work_location_id_fkey(id,name)'
+  'id,user_id,work_location_id,lat,lng,notes,photo_bucket,photo_path,captured_at,review_status,review_note,reviewed_at,reviewed_by,created_at,user:profiles!area_inspections_user_id_fkey(id,email,full_name,employee_code),work_location:work_locations!area_inspections_work_location_id_fkey(id,name)'
 
 function first<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) {
@@ -115,6 +125,10 @@ async function mapInspection(row: AreaInspectionRow) {
     photoPath: row.photo_path,
     photoUrl: await createSignedReadUrl(row.photo_bucket, row.photo_path),
     capturedAt: row.captured_at,
+    reviewStatus: row.review_status,
+    reviewNote: row.review_note,
+    reviewedAt: row.reviewed_at,
+    reviewedBy: row.reviewed_by,
     createdAt: row.created_at
   }
 }
@@ -430,4 +444,58 @@ export async function deleteAreaInspection(input: {
   })
 
   return { id: row.id, deleted: true as const }
+}
+
+export async function reviewAreaInspection(input: {
+  areaInspectionId: string
+  payload: ReviewAreaInspectionRequest
+  reviewerId: string
+  c?: Context<AppEnv> | undefined
+}) {
+  if (input.payload.reviewStatus === 'REJECTED' && !input.payload.reviewNote?.trim()) {
+    throw areaInspectionReviewNoteRequired()
+  }
+
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { data, error } = await supabaseAdmin
+    .from('area_inspections')
+    .update({
+      review_status: input.payload.reviewStatus,
+      review_note: input.payload.reviewNote?.trim() || null,
+      reviewed_by: input.reviewerId,
+      reviewed_at: new Date().toISOString()
+    })
+    .eq('id', input.areaInspectionId)
+    .select(inspectionSelect)
+    .maybeSingle()
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  if (!data) {
+    throw notFound('Area inspection was not found')
+  }
+
+  await writeAuditLog({
+    actorUserId: input.reviewerId,
+    action: 'area_inspection.review',
+    resourceType: 'area_inspection',
+    resourceId: input.areaInspectionId,
+    metadata: {
+      reviewStatus: input.payload.reviewStatus,
+      reviewNote: input.payload.reviewNote?.trim() || null
+    },
+    c: input.c
+  })
+  await writeEventLog({
+    actorUserId: input.reviewerId,
+    eventType: 'area_inspection.reviewed',
+    resourceType: 'area_inspection',
+    resourceId: input.areaInspectionId,
+    metadata: { reviewStatus: input.payload.reviewStatus },
+    c: input.c
+  })
+
+  return { areaInspection: await mapInspection(data as AreaInspectionRow) }
 }

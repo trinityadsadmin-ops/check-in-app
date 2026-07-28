@@ -5,14 +5,14 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
-import type { LatLngNode } from './latLngNode';
 
-export interface WorkLocation {
+export interface WorkLocationUser {
   id: string;
-  name: string;
   /** @nullable */
-  description: string | null;
-  areaNodes: LatLngNode[];
-  isActive: boolean;
-  createdAt: string;
+  email: string | null;
+  /** @nullable */
+  fullName: string | null;
+  /** @nullable */
+  employeeCode: string | null;
+  assignedAt: string;
 }

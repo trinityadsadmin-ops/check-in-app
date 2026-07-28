@@ -45,7 +45,7 @@ const navigation = [
     permission: permissions.usersRead
   },
   {
-    labelKey: 'nav.workAreas',
+    labelKey: 'nav.workLocations',
     href: '/dashboard/work-areas',
     icon: MapPinned,
     permission: permissions.workAreasRead
@@ -60,7 +60,7 @@ const navigation = [
     labelKey: 'nav.areaInspections',
     href: '/dashboard/area-inspections',
     icon: Camera,
-    permission: permissions.attendanceRead
+    permission: permissions.areaInspectionsRead
   },
   {
     labelKey: 'nav.emergency',

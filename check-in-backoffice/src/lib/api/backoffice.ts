@@ -23,15 +23,19 @@ import {
   getListSalaryRecordsUrl,
   getListSalaryUploadsUrl,
   getListWorkLocationsUrl,
+  getListWorkLocationUsersUrl,
   getResetUserDeviceUrl,
   getReviewAttendanceUrl,
+  getReviewAreaInspectionUrl,
   getSetUserPermissionOverridesUrl,
   getSetUserWorkAreaUrl,
+  getUnassignWorkLocationUserUrl,
   getUpdateBackofficeUserUrl,
   getUpdateEmergencyLogUrl,
   getUpdateWorkLocationUrl
 } from '@/generated/api/backoffice/backoffice'
 import type {
+  AreaInspectionResponse,
   AttendanceDayResponse,
   BackofficeUserResponse,
   DeleteAreaInspectionResponse,
@@ -66,14 +70,17 @@ import type {
   ListWorkLocationsResponse,
   ResetDeviceResponse,
   ReviewAttendanceRequest,
+  ReviewAreaInspectionRequest,
   SetUserPermissionOverridesRequest,
   SetEmployeeWorkAreaRequest,
   UpdateEmergencyLogRequest,
   UpdateBackofficeUserRequest,
   UpdateWorkLocationRequest,
+  UnassignWorkLocationUserResponse,
   UserPermissionOverridesResponse,
   UserEffectivePermissionsResponse,
-  WorkLocationResponse
+  WorkLocationResponse,
+  WorkLocationUsersResponse
 } from '@/generated/api/model'
 
 export function listUsers(params: ListBackofficeUsersParams = {}) {
@@ -145,6 +152,17 @@ export function updateWorkLocation(workLocationId: string, payload: UpdateWorkLo
   })
 }
 
+export function listWorkLocationUsers(workLocationId: string) {
+  return fetchJson<WorkLocationUsersResponse>(getListWorkLocationUsersUrl(workLocationId))
+}
+
+export function unassignWorkLocationUser(workLocationId: string, userId: string) {
+  return fetchJson<UnassignWorkLocationUserResponse>(
+    getUnassignWorkLocationUserUrl(workLocationId, userId),
+    { method: 'DELETE' }
+  )
+}
+
 export function getUserWorkArea(userId: string) {
   return fetchJson<EmployeeWorkAreaResponse>(getGetUserWorkAreaUrl(userId))
 }
@@ -182,6 +200,16 @@ export function deleteAreaInspection(areaInspectionId: string) {
       method: 'DELETE'
     }
   )
+}
+
+export function reviewAreaInspection(
+  areaInspectionId: string,
+  payload: ReviewAreaInspectionRequest
+) {
+  return fetchJson<AreaInspectionResponse>(getReviewAreaInspectionUrl(areaInspectionId), {
+    method: 'PATCH',
+    body: payload
+  })
 }
 
 export function listEmergencyLogs(params: ListEmergencyLogsParams = {}) {

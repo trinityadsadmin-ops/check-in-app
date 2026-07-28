@@ -6,6 +6,8 @@ export const AreaInspectionContentTypeSchema = z.enum([
   'image/webp'
 ])
 
+export const AreaInspectionReviewStatusSchema = z.enum(['PENDING', 'APPROVED', 'REJECTED'])
+
 export const CreateAreaInspectionUploadUrlRequestSchema = z
   .object({
     contentType: AreaInspectionContentTypeSchema
@@ -53,6 +55,10 @@ export const AreaInspectionSchema = z
     photoPath: z.string(),
     photoUrl: z.string().url().nullable(),
     capturedAt: z.string().datetime(),
+    reviewStatus: AreaInspectionReviewStatusSchema,
+    reviewNote: z.string().nullable(),
+    reviewedAt: z.string().datetime().nullable(),
+    reviewedBy: z.string().uuid().nullable(),
     createdAt: z.string().datetime()
   })
   .openapi('AreaInspection')
@@ -101,6 +107,13 @@ export const DeleteAreaInspectionResponseSchema = z
   })
   .openapi('DeleteAreaInspectionResponse')
 
+export const ReviewAreaInspectionRequestSchema = z
+  .object({
+    reviewStatus: z.enum(['APPROVED', 'REJECTED']),
+    reviewNote: z.string().max(1000).optional()
+  })
+  .openapi('ReviewAreaInspectionRequest')
+
 export type CreateAreaInspectionUploadUrlRequest = z.infer<
   typeof CreateAreaInspectionUploadUrlRequestSchema
 >
@@ -109,3 +122,4 @@ export type ListAreaInspectionsQuery = z.infer<typeof ListAreaInspectionsQuerySc
 export type ListSiteAreaInspectionsQuery = z.infer<
   typeof ListSiteAreaInspectionsQuerySchema
 >
+export type ReviewAreaInspectionRequest = z.infer<typeof ReviewAreaInspectionRequestSchema>

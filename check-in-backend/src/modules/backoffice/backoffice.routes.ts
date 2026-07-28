@@ -19,11 +19,14 @@ import {
   AreaInspectionIdParamSchema,
   DeleteAreaInspectionResponseSchema,
   ListAreaInspectionsQuerySchema,
-  ListAreaInspectionsResponseSchema
+  ListAreaInspectionsResponseSchema,
+  AreaInspectionResponseSchema,
+  ReviewAreaInspectionRequestSchema
 } from '../area-inspection/area-inspection.schemas.js'
 import {
   deleteAreaInspection,
-  listAreaInspections
+  listAreaInspections,
+  reviewAreaInspection
 } from '../area-inspection/area-inspection.service.js'
 import {
   EmergencyLogIdParamSchema,
@@ -79,12 +82,15 @@ import {
   ResetDeviceResponseSchema,
   SetUserPermissionOverridesRequestSchema,
   SetEmployeeWorkAreaRequestSchema,
+  UnassignWorkLocationUserResponseSchema,
   UpdateBackofficeUserRequestSchema,
   UserEffectivePermissionsResponseSchema,
   UserPermissionOverridesResponseSchema,
   UpdateWorkLocationRequestSchema,
   UuidParamSchema,
   WorkLocationIdParamSchema,
+  WorkLocationUserParamSchema,
+  WorkLocationUsersResponseSchema,
   WorkLocationResponseSchema
 } from './backoffice.schemas.js'
 import {
@@ -100,11 +106,13 @@ import {
   listRoles,
   listUsers,
   listWorkLocations,
+  listWorkLocationUsers,
   resetUserDevice,
   setUserPermissionOverrides,
   setUserWorkArea,
   updateBackofficeUser,
-  updateWorkLocation
+  updateWorkLocation,
+  unassignWorkLocationUser
 } from './backoffice.service.js'
 
 export const backofficeRoutes = new OpenAPIHono<AppEnv>()
@@ -590,6 +598,68 @@ backofficeRoutes.openapi(updateWorkLocationRoute, async (c) => {
   )
 })
 
+const listWorkLocationUsersRoute = createRoute({
+  method: 'get',
+  path: '/work-locations/{workLocationId}/users',
+  operationId: 'listWorkLocationUsers',
+  tags: ['Backoffice'],
+  request: {
+    params: WorkLocationIdParamSchema
+  },
+  responses: {
+    200: {
+      description: 'Employees assigned to the work location',
+      content: {
+        'application/json': {
+          schema: WorkLocationUsersResponseSchema
+        }
+      }
+    },
+    ...commonErrorResponses
+  }
+})
+
+backofficeRoutes.openapi(listWorkLocationUsersRoute, async (c) => {
+  ensurePermission(c, permissions.workAreasRead)
+  const { workLocationId } = c.req.valid('param')
+  return c.json(await listWorkLocationUsers(workLocationId), 200)
+})
+
+const unassignWorkLocationUserRoute = createRoute({
+  method: 'delete',
+  path: '/work-locations/{workLocationId}/users/{userId}',
+  operationId: 'unassignWorkLocationUser',
+  tags: ['Backoffice'],
+  request: {
+    params: WorkLocationUserParamSchema
+  },
+  responses: {
+    200: {
+      description: 'Employee unassigned from work location',
+      content: {
+        'application/json': {
+          schema: UnassignWorkLocationUserResponseSchema
+        }
+      }
+    },
+    ...commonErrorResponses
+  }
+})
+
+backofficeRoutes.openapi(unassignWorkLocationUserRoute, async (c) => {
+  ensurePermission(c, permissions.workAreasManage)
+  const { workLocationId, userId } = c.req.valid('param')
+  return c.json(
+    await unassignWorkLocationUser({
+      workLocationId,
+      userId,
+      actorUserId: c.get('currentUser').id,
+      c
+    }),
+    200
+  )
+})
+
 const getUserWorkAreaRoute = createRoute({
   method: 'get',
   path: '/users/{userId}/work-area',
@@ -779,8 +849,50 @@ const listAreaInspectionsRoute = createRoute({
 })
 
 backofficeRoutes.openapi(listAreaInspectionsRoute, async (c) => {
-  ensurePermission(c, permissions.attendanceRead)
+  ensurePermission(c, permissions.areaInspectionsRead)
   return c.json(await listAreaInspections(c.req.valid('query')), 200)
+})
+
+const reviewAreaInspectionRoute = createRoute({
+  method: 'patch',
+  path: '/area-inspections/{areaInspectionId}/review',
+  operationId: 'reviewAreaInspection',
+  tags: ['Backoffice'],
+  request: {
+    params: AreaInspectionIdParamSchema,
+    body: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: ReviewAreaInspectionRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: 'Area inspection reviewed',
+      content: {
+        'application/json': {
+          schema: AreaInspectionResponseSchema
+        }
+      }
+    },
+    ...commonErrorResponses
+  }
+})
+
+backofficeRoutes.openapi(reviewAreaInspectionRoute, async (c) => {
+  ensurePermission(c, permissions.areaInspectionsReview)
+  return c.json(
+    await reviewAreaInspection({
+      areaInspectionId: c.req.valid('param').areaInspectionId,
+      payload: c.req.valid('json'),
+      reviewerId: c.get('currentUser').id,
+      c
+    }),
+    200
+  )
 })
 
 const deleteAreaInspectionRoute = createRoute({
@@ -805,7 +917,7 @@ const deleteAreaInspectionRoute = createRoute({
 })
 
 backofficeRoutes.openapi(deleteAreaInspectionRoute, async (c) => {
-  ensurePermission(c, permissions.attendanceReview)
+  ensurePermission(c, permissions.areaInspectionsDelete)
   return c.json(
     await deleteAreaInspection({
       areaInspectionId: c.req.valid('param').areaInspectionId,

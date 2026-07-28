@@ -1,17 +1,21 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, RefreshCcw } from 'lucide-react'
-import { useState } from 'react'
+import { format, parseISO } from 'date-fns'
+import { CalendarDays, ExternalLink, RefreshCcw, RotateCcw } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import type { DateRange } from 'react-day-picker'
 import { toast } from 'sonner'
 import { EmptyState } from '@/components/data/empty-state'
 import { ErrorBanner } from '@/components/data/error-banner'
 import { TableSkeleton } from '@/components/data/table-skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -27,11 +31,13 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { AttendanceDayReviewStatus } from '@/generated/api/model'
 import { usePermissions } from '@/hooks/use-permissions'
 import { listAttendance, reviewAttendance } from '@/lib/api/backoffice'
 import { getErrorMessage } from '@/lib/api/errors'
 import { translateStatusKey, useI18n } from '@/lib/i18n'
+import { cn } from '@/lib/utils'
 
 type ReviewStatusFilter = '' | AttendanceDayReviewStatus
 
@@ -101,6 +107,43 @@ export function AttendancePage() {
   })
 
   const attendanceDays = attendanceQuery.data?.attendanceDays ?? []
+  const selectedDateRange = useMemo<DateRange | undefined>(() => {
+    if (!dateFrom) {
+      return undefined
+    }
+
+    return {
+      from: parseISO(dateFrom),
+      ...(dateTo ? { to: parseISO(dateTo) } : {})
+    }
+  }, [dateFrom, dateTo])
+
+  function setDateRange(range: DateRange | undefined) {
+    setDateFrom(range?.from ? format(range.from, 'yyyy-MM-dd') : '')
+    setDateTo(range?.to ? format(range.to, 'yyyy-MM-dd') : '')
+  }
+
+  function formatDateRangeLabel() {
+    if (!selectedDateRange?.from) {
+      return t('common.all')
+    }
+
+    const from = selectedDateRange.from.toLocaleDateString(locale, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    })
+
+    if (!selectedDateRange.to) {
+      return from
+    }
+
+    return `${from} - ${selectedDateRange.to.toLocaleDateString(locale, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    })}`
+  }
 
   return (
     <Card>
@@ -119,7 +162,7 @@ export function AttendancePage() {
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="flex flex-wrap items-end gap-3">
           <div className="grid gap-2">
             <Label htmlFor="review-status">{t('attendance.reviewStatus')}</Label>
             <Select
@@ -140,23 +183,46 @@ export function AttendancePage() {
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="date-from">{t('attendance.dateFrom')}</Label>
-            <Input
-              id="date-from"
-              type="date"
-              value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-            />
+            <Label>{t('attendance.dateFrom')} - {t('attendance.dateTo')}</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'w-72 justify-start text-left font-normal',
+                    !selectedDateRange?.from && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarDays className="size-4" />
+                  {formatDateRangeLabel()}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={selectedDateRange}
+                  onSelect={setDateRange}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="date-to">{t('attendance.dateTo')}</Label>
-            <Input
-              id="date-to"
-              type="date"
-              value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
-            />
-          </div>
+          {selectedDateRange?.from ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('common.reset')}
+                  onClick={() => setDateRange(undefined)}
+                >
+                  <RotateCcw className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('common.reset')}</TooltipContent>
+            </Tooltip>
+          ) : null}
           <div className="grid gap-2">
             <Label htmlFor="review-note">{t('attendance.reviewNote')}</Label>
             <Input

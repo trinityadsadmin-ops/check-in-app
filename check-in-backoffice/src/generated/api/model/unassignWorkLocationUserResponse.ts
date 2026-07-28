@@ -6,7 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface SetEmployeeWorkAreaRequest {
-  workLocationId: string;
-  isActive?: boolean;
+export interface UnassignWorkLocationUserResponse {
+  unassigned: boolean;
 }

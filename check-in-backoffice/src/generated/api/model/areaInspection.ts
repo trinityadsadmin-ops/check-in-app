@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AreaInspectionUser } from './areaInspectionUser';
+import type { AreaInspectionReviewStatus } from './areaInspectionReviewStatus';
 
 export interface AreaInspection {
   id: string;
@@ -25,5 +26,12 @@ export interface AreaInspection {
   /** @nullable */
   photoUrl: string | null;
   capturedAt: string;
+  reviewStatus: AreaInspectionReviewStatus;
+  /** @nullable */
+  reviewNote: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  /** @nullable */
+  reviewedBy: string | null;
   createdAt: string;
 }

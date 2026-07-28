@@ -5,10 +5,12 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
-import type { EmployeeWorkArea } from './employeeWorkArea';
-import type { WorkLocation } from './workLocation';
+import type { FrontendWorkAreaResponseWorkArea } from './frontendWorkAreaResponseWorkArea';
+import type { FrontendWorkAreaResponseWorkLocation } from './frontendWorkAreaResponseWorkLocation';
 
 export interface FrontendWorkAreaResponse {
-  workArea: EmployeeWorkArea;
-  workLocation: WorkLocation;
+  /** @nullable */
+  workArea: FrontendWorkAreaResponseWorkArea;
+  /** @nullable */
+  workLocation: FrontendWorkAreaResponseWorkLocation;
 }

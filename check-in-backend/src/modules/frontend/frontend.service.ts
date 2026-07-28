@@ -55,7 +55,7 @@ export async function getOwnWorkArea(userId: string) {
   const supabaseAdmin = requireSupabaseAdmin()
   const { data, error } = await supabaseAdmin
     .from('work_locations')
-    .select('id,name,description,is_active,created_at')
+    .select('id,name,description,area_nodes,is_active,created_at')
     .eq('id', workArea.workLocationId)
     .maybeSingle()
 
@@ -70,6 +70,7 @@ export async function getOwnWorkArea(userId: string) {
           id: data.id as string,
           name: data.name as string,
           description: (data.description as string | null) ?? null,
+          areaNodes: data.area_nodes as Array<{ lat: number; lng: number }>,
           isActive: data.is_active as boolean,
           createdAt: new Date(data.created_at as string).toISOString()
         }

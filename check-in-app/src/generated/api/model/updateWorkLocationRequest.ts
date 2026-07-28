@@ -5,6 +5,7 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
+import type { LatLngNode } from './latLngNode';
 
 export interface UpdateWorkLocationRequest {
   /**
@@ -12,7 +13,11 @@ export interface UpdateWorkLocationRequest {
    * @maxLength 160
    */
   name?: string;
-  /** @maxLength 1000 */
-  description?: string;
+  /**
+   * @maxLength 1000
+   * @nullable
+   */
+  description?: string | null;
+  areaNodes?: LatLngNode[];
   isActive?: boolean;
 }

@@ -5,8 +5,8 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
+import type { WorkLocationUser } from './workLocationUser';
 
-export interface SetEmployeeWorkAreaRequest {
-  workLocationId: string;
-  isActive?: boolean;
+export interface WorkLocationUsersResponse {
+  users: WorkLocationUser[];
 }

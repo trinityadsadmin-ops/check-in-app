@@ -39,9 +39,10 @@ export function getDefaultAreaNodes() {
 type MapAreaEditorProps = {
   value: LatLngNode[]
   onChange: (nodes: LatLngNode[]) => void
+  disabled?: boolean
 }
 
-export function MapAreaEditor({ value, onChange }: MapAreaEditorProps) {
+export function MapAreaEditor({ value, onChange, disabled = false }: MapAreaEditorProps) {
   const { t } = useI18n()
   const mapElementRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<Leaflet.Map | null>(null)
@@ -92,6 +93,10 @@ export function MapAreaEditor({ value, onChange }: MapAreaEditorProps) {
         .addTo(map)
 
       map.on('click', (event) => {
+        if (disabled) {
+          return
+        }
+
         const nextNodes = [...nodesRef.current]
         nextNodes[selectedIndexRef.current] = {
           lat: Number(event.latlng.lat.toFixed(6)),
@@ -114,7 +119,7 @@ export function MapAreaEditor({ value, onChange }: MapAreaEditorProps) {
       polygonRef.current = null
       markersRef.current = []
     }
-  }, [])
+  }, [disabled])
 
   useEffect(() => {
     selectedIndexRef.current = selectedIndex
@@ -146,13 +151,13 @@ export function MapAreaEditor({ value, onChange }: MapAreaEditorProps) {
     markersRef.current = nodes.map((node, index) => {
       const marker = leaflet
         .marker([node.lat, node.lng], {
-          draggable: true,
           icon: leaflet.divIcon({
             className: '',
             html: `<span class="flex size-7 items-center justify-center rounded-full border-2 border-background bg-primary text-xs font-semibold text-primary-foreground shadow">${index + 1}</span>`,
             iconSize: [28, 28],
             iconAnchor: [14, 14]
-          })
+          }),
+          draggable: !disabled
         })
         .addTo(map)
 
@@ -175,7 +180,7 @@ export function MapAreaEditor({ value, onChange }: MapAreaEditorProps) {
     })
 
     map.fitBounds(polygonRef.current.getBounds(), { padding: [24, 24], maxZoom: 18 })
-  }, [isMapReady, nodes, onChange])
+  }, [disabled, isMapReady, nodes, onChange])
 
   function updateNode(index: number, key: keyof LatLngNode, rawValue: string) {
     const parsed = Number(rawValue)
@@ -190,7 +195,9 @@ export function MapAreaEditor({ value, onChange }: MapAreaEditorProps) {
       ...currentNode,
       [key]: parsed
     }
-    onChange(nextNodes)
+    if (!disabled) {
+      onChange(nextNodes)
+    }
   }
 
   return (
@@ -217,6 +224,7 @@ export function MapAreaEditor({ value, onChange }: MapAreaEditorProps) {
                 type="button"
                 variant={selectedIndex === index ? 'default' : 'outline'}
                 size="sm"
+                disabled={disabled}
                 onClick={() => setSelectedIndex(index)}
               >
                 {t('common.select')}
@@ -229,6 +237,7 @@ export function MapAreaEditor({ value, onChange }: MapAreaEditorProps) {
                   id={`node-${index}-lat`}
                   inputMode="decimal"
                   value={node.lat}
+                  disabled={disabled}
                   onChange={(event) => updateNode(index, 'lat', event.target.value)}
                 />
               </div>
@@ -238,6 +247,7 @@ export function MapAreaEditor({ value, onChange }: MapAreaEditorProps) {
                   id={`node-${index}-lng`}
                   inputMode="decimal"
                   value={node.lng}
+                  disabled={disabled}
                   onChange={(event) => updateNode(index, 'lng', event.target.value)}
                 />
               </div>

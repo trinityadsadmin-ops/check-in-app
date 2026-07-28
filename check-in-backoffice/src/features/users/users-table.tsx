@@ -1,7 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, RotateCcw, Save, Search, Trash2 } from 'lucide-react'
+import { MapPinned, Plus, RotateCcw, Save, Search, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -58,22 +58,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ApiError, getApiErrorCode } from '@/lib/api/fetch-json'
 import { getErrorMessage } from '@/lib/api/errors'
-import type { UserPermissionOverride } from '@/generated/api/model'
+import type { BackofficeUser, UserPermissionOverride } from '@/generated/api/model'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { useI18n } from '@/lib/i18n'
 import { hasEveryPermission, hasPermission, permissions as permissionKeys } from '@/lib/permissions'
 import {
   createUser,
   getUserEffectivePermissions,
+  getUserWorkArea,
   listPermissions,
   listRoles,
   listUsers,
+  listWorkLocations,
   resetUserDevice,
   setUserPermissionOverrides,
   updateUser
 } from '@/lib/api/backoffice'
 import { getAuthMe } from '@/lib/api/auth'
 import { UserCombobox } from './user-combobox'
+import { MapAreaEditor } from '../work-areas/map-area-editor'
 
 type UsersTab = 'list' | 'permissions'
 
@@ -104,6 +107,7 @@ export function UsersTable() {
   const [employeeCode, setEmployeeCode] = useState('')
   const [roleId, setRoleId] = useState('')
   const [selectedUserId, setSelectedUserId] = useState('')
+  const [viewedWorkAreaUser, setViewedWorkAreaUser] = useState<BackofficeUser | null>(null)
   const [isPermissionPickerOpen, setIsPermissionPickerOpen] = useState(false)
   const [permissionSearch, setPermissionSearch] = useState('')
   const [grantedPermissionKeys, setGrantedPermissionKeys] = useState<string[]>([])
@@ -131,6 +135,7 @@ export function UsersTable() {
   const canResetDevice = hasPermission(currentUser, permissionKeys.usersResetDevice)
   const canReadPermissions = hasPermission(currentUser, permissionKeys.permissionsRead)
   const canUpdatePermissions = hasPermission(currentUser, permissionKeys.permissionsUpdate)
+  const canReadWorkAreas = hasPermission(currentUser, permissionKeys.workAreasRead)
   const availableTabs = useMemo<UsersTab[]>(() => {
     const tabs: UsersTab[] = []
 
@@ -168,6 +173,16 @@ export function UsersTable() {
     queryKey: ['user-effective-permissions', selectedUserId],
     queryFn: () => getUserEffectivePermissions(selectedUserId),
     enabled: Boolean(selectedUserId) && canReadPermissions
+  })
+  const userWorkAreaQuery = useQuery({
+    queryKey: ['user-work-area', viewedWorkAreaUser?.id],
+    queryFn: () => getUserWorkArea(viewedWorkAreaUser?.id ?? ''),
+    enabled: Boolean(viewedWorkAreaUser) && canReadWorkAreas
+  })
+  const workLocationsQuery = useQuery({
+    queryKey: ['work-locations'],
+    queryFn: listWorkLocations,
+    enabled: Boolean(viewedWorkAreaUser) && canReadWorkAreas
   })
   const createMutation = useMutation({
     mutationFn: () =>
@@ -256,6 +271,17 @@ export function UsersTable() {
     () => new Map(permissions.map((permission) => [permission.key, permission])),
     [permissions]
   )
+  const viewedWorkLocation = useMemo(() => {
+    const workLocationId = userWorkAreaQuery.data?.workArea?.workLocationId
+
+    if (!workLocationId) {
+      return null
+    }
+
+    return (
+      workLocationsQuery.data?.workLocations.find((location) => location.id === workLocationId) ?? null
+    )
+  }, [userWorkAreaQuery.data?.workArea?.workLocationId, workLocationsQuery.data?.workLocations])
   const availablePermissions = useMemo(
     () => permissions.filter((permission) => !grantedPermissionKeys.includes(permission.key)),
     [grantedPermissionKeys, permissions]
@@ -342,6 +368,7 @@ export function UsersTable() {
   }
 
   return (
+    <>
     <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
       <Tabs
         value={activeTab}
@@ -411,7 +438,7 @@ export function UsersTable() {
                     <TableHead>{t('common.role')}</TableHead>
                     <TableHead>{t('common.status')}</TableHead>
                     <TableHead>{t('common.created')}</TableHead>
-                    <TableHead className="w-36 text-right">{t('common.device')}</TableHead>
+                    <TableHead className="w-80 text-right">{t('common.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -473,6 +500,17 @@ export function UsersTable() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {canReadWorkAreas ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setViewedWorkAreaUser(user)}
+                              >
+                                <MapPinned className="size-4" />
+                                {t('users.viewWorkLocation')}
+                              </Button>
+                            ) : null}
                             {canReadPermissions ? (
                               <Button
                                 variant="outline"
@@ -804,5 +842,70 @@ export function UsersTable() {
         </form>
       </DialogContent>
     </Dialog>
+    <Dialog
+      open={Boolean(viewedWorkAreaUser)}
+      onOpenChange={(open) => {
+        if (!open) {
+          setViewedWorkAreaUser(null)
+        }
+      }}
+    >
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{t('users.viewWorkLocation')}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="grid gap-1">
+            <div className="font-medium">
+              {viewedWorkAreaUser?.fullName ?? viewedWorkAreaUser?.email ?? '-'}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {[viewedWorkAreaUser?.employeeCode, viewedWorkAreaUser?.email]
+                .filter(Boolean)
+                .join(' · ')}
+            </div>
+          </div>
+
+          {userWorkAreaQuery.isLoading || workLocationsQuery.isLoading ? (
+            <TableSkeleton rows={3} />
+          ) : null}
+          {userWorkAreaQuery.isError ? <ErrorBanner error={userWorkAreaQuery.error} /> : null}
+          {workLocationsQuery.isError ? <ErrorBanner error={workLocationsQuery.error} /> : null}
+
+          {userWorkAreaQuery.data && workLocationsQuery.data ? (
+            userWorkAreaQuery.data.workArea && viewedWorkLocation ? (
+              <>
+                <div className="grid gap-1 rounded-md border p-4">
+                  <div className="text-sm text-muted-foreground">
+                    {t('users.assignedWorkLocation')}
+                  </div>
+                  <div className="font-medium">{viewedWorkLocation.name}</div>
+                  {viewedWorkLocation.description ? (
+                    <div className="text-sm text-muted-foreground">
+                      {viewedWorkLocation.description}
+                    </div>
+                  ) : null}
+                </div>
+                <MapAreaEditor
+                  value={userWorkAreaQuery.data.workArea.areaNodes}
+                  onChange={() => undefined}
+                  disabled
+                />
+              </>
+            ) : (
+              <EmptyState label={t('workAreas.emptyUserArea')} />
+            )
+          ) : null}
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              {t('common.cancel')}
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

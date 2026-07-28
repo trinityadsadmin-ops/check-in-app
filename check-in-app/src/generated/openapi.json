@@ -755,6 +755,28 @@
             "type": "string",
             "format": "date-time"
           },
+          "reviewStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "reviewNote": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "reviewedBy": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -771,6 +793,10 @@
           "photoPath",
           "photoUrl",
           "capturedAt",
+          "reviewStatus",
+          "reviewNote",
+          "reviewedAt",
+          "reviewedBy",
           "createdAt"
         ]
       },
@@ -778,90 +804,91 @@
         "type": "object",
         "properties": {
           "workArea": {
-            "$ref": "#/components/schemas/EmployeeWorkArea"
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "userId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "workLocationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "areaNodes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LatLngNode"
+                }
+              },
+              "isActive": {
+                "type": "boolean"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "userId",
+              "workLocationId",
+              "areaNodes",
+              "isActive",
+              "createdAt",
+              "updatedAt"
+            ]
           },
           "workLocation": {
-            "$ref": "#/components/schemas/WorkLocation"
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string",
+                "nullable": true
+              },
+              "areaNodes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LatLngNode"
+                }
+              },
+              "isActive": {
+                "type": "boolean"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "description",
+              "areaNodes",
+              "isActive",
+              "createdAt"
+            ]
           }
         },
         "required": [
           "workArea",
           "workLocation"
-        ]
-      },
-      "EmployeeWorkArea": {
-        "type": "object",
-        "nullable": true,
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "workLocationId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "areaNodes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LatLngNode"
-            }
-          },
-          "isActive": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "userId",
-          "workLocationId",
-          "areaNodes",
-          "isActive",
-          "createdAt",
-          "updatedAt"
-        ]
-      },
-      "WorkLocation": {
-        "type": "object",
-        "nullable": true,
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "isActive": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "description",
-          "isActive",
-          "createdAt"
         ]
       },
       "CreateAttendanceUploadUrlResponse": {
@@ -1681,6 +1708,43 @@
           "workLocations"
         ]
       },
+      "WorkLocation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "areaNodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LatLngNode"
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "areaNodes",
+          "isActive",
+          "createdAt"
+        ]
+      },
       "WorkLocationResponse": {
         "type": "object",
         "properties": {
@@ -1704,51 +1768,6 @@
             "type": "string",
             "maxLength": 1000
           },
-          "isActive": {
-            "type": "boolean",
-            "default": true
-          }
-        },
-        "required": [
-          "name"
-        ]
-      },
-      "UpdateWorkLocationRequest": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 160
-          },
-          "description": {
-            "type": "string",
-            "maxLength": 1000
-          },
-          "isActive": {
-            "type": "boolean",
-            "default": true
-          }
-        }
-      },
-      "EmployeeWorkAreaResponse": {
-        "type": "object",
-        "properties": {
-          "workArea": {
-            "$ref": "#/components/schemas/EmployeeWorkArea"
-          }
-        },
-        "required": [
-          "workArea"
-        ]
-      },
-      "SetEmployeeWorkAreaRequest": {
-        "type": "object",
-        "properties": {
-          "workLocationId": {
-            "type": "string",
-            "format": "uuid"
-          },
           "areaNodes": {
             "type": "array",
             "items": {
@@ -1761,8 +1780,161 @@
           }
         },
         "required": [
-          "workLocationId",
+          "name",
           "areaNodes"
+        ]
+      },
+      "UpdateWorkLocationRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1000
+          },
+          "areaNodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LatLngNode"
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WorkLocationUsersResponse": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkLocationUser"
+            }
+          }
+        },
+        "required": [
+          "users"
+        ]
+      },
+      "WorkLocationUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "format": "email"
+          },
+          "fullName": {
+            "type": "string",
+            "nullable": true
+          },
+          "employeeCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "assignedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "employeeCode",
+          "assignedAt"
+        ]
+      },
+      "UnassignWorkLocationUserResponse": {
+        "type": "object",
+        "properties": {
+          "unassigned": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "unassigned"
+        ]
+      },
+      "EmployeeWorkAreaResponse": {
+        "type": "object",
+        "properties": {
+          "workArea": {
+            "$ref": "#/components/schemas/EmployeeWorkArea"
+          }
+        },
+        "required": [
+          "workArea"
+        ]
+      },
+      "EmployeeWorkArea": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workLocationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "areaNodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LatLngNode"
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "workLocationId",
+          "areaNodes",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "SetEmployeeWorkAreaRequest": {
+        "type": "object",
+        "properties": {
+          "workLocationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "workLocationId"
         ]
       },
       "ListAttendanceResponse": {
@@ -1809,6 +1981,25 @@
             "type": "string",
             "enum": [
               "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "reviewNote": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reviewStatus"
+        ]
+      },
+      "ReviewAreaInspectionRequest": {
+        "type": "object",
+        "properties": {
+          "reviewStatus": {
+            "type": "string",
+            "enum": [
               "APPROVED",
               "REJECTED"
             ]
@@ -3887,6 +4078,117 @@
         }
       }
     },
+    "/api/backoffice/work-locations/{workLocationId}/users": {
+      "get": {
+        "operationId": "listWorkLocationUsers",
+        "tags": [
+          "Backoffice"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "workLocationId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Employees assigned to the work location",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkLocationUsersResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/backoffice/work-locations/{workLocationId}/users/{userId}": {
+      "delete": {
+        "operationId": "unassignWorkLocationUser",
+        "tags": [
+          "Backoffice"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "workLocationId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Employee unassigned from work location",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnassignWorkLocationUserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/backoffice/users/{userId}/work-area": {
       "get": {
         "operationId": "getUserWorkArea",
@@ -4286,6 +4588,67 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListAreaInspectionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/backoffice/area-inspections/{areaInspectionId}/review": {
+      "patch": {
+        "operationId": "reviewAreaInspection",
+        "tags": [
+          "Backoffice"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "areaInspectionId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewAreaInspectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Area inspection reviewed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AreaInspectionResponse"
                 }
               }
             }
