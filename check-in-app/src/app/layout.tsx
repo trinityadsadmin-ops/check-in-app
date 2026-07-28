@@ -40,6 +40,10 @@ export const viewport: Viewport = {
   themeColor: "#00754A",
   width: "device-width",
   initialScale: 1,
+  // Lock zoom so the app behaves like a native screen: no pinch-zoom, no
+  // double-tap zoom. Content fits the viewport and scrolls vertically only.
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

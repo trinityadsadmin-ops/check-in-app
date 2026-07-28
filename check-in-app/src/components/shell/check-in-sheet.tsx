@@ -6,35 +6,24 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import GeofenceMap from '@/components/map/geofence-map'
 import type { LatLng } from '@/components/map/geofence-map'
-import { CameraCapture, type CapturedPhoto } from '@/components/shell/camera-capture'
-import {
-  useCheckIn,
-  useCheckOut,
-  useCreateAttendanceUploadUrl
-} from '@/generated/api/mobile/mobile'
+import { useCheckIn, useCheckOut } from '@/generated/api/mobile/mobile'
 import {
   useGetFrontendWorkArea,
   useListFrontendAttendance
 } from '@/generated/api/frontend/frontend'
-import {
-  CreateAttendanceUploadUrlRequestContentType,
-  CreateAttendanceUploadUrlRequestType
-} from '@/generated/api/model'
 import { ApiError } from '@/lib/api/fetch-client'
 import { useGeolocation } from '@/lib/geo/use-geolocation'
 import { useI18n } from '@/lib/i18n/i18n-provider'
 import { useShell } from '@/lib/shell/shell-provider'
 import { latestWorkArea, pointInPolygon } from '@/features/attendance/attendance-utils'
-import { putPhotoBytes } from '@/features/attendance/capture-photo'
 
 // Default centre when the user has no history and no fix yet (central Bangkok).
 const FALLBACK_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 }
 
 /**
- * Bottom-sheet geofence verification. Confirm opens the camera to take the
- * attendance photo, then runs the full punch: upload-url → PUT the captured photo
- * → check-in/out. Visible whenever `useShell().sheet` is 'in' | 'out'. Mounted by
- * the integrate phase via AppShell's `overlays` slot.
+ * Bottom-sheet geofence verification. Confirm submits the check-in/out punch
+ * directly (no photo required). Visible whenever `useShell().sheet` is
+ * 'in' | 'out'. Mounted by the integrate phase via AppShell's `overlays` slot.
  */
 export function CheckInSheet() {
   const { t, lang } = useI18n()
@@ -61,11 +50,9 @@ export function CheckInSheet() {
     return latestWorkArea(attendanceQuery.data?.attendanceDays ?? [])
   }, [assignedQuery.data, attendanceQuery.data])
 
-  const uploadUrlMutation = useCreateAttendanceUploadUrl()
   const checkInMutation = useCheckIn()
   const checkOutMutation = useCheckOut()
   const [submitting, setSubmitting] = useState(false)
-  const [cameraOpen, setCameraOpen] = useState(false)
 
   // Request a fresh GPS fix each time the sheet opens.
   useEffect(() => {
@@ -117,46 +104,19 @@ export function CheckInSheet() {
 
   const canConfirm = !!position && !submitting && status !== 'locating'
 
-  // Step 1: confirm location → open the camera to take the attendance photo.
-  const onConfirm = () => {
+  // Confirm location → submit the check-in/out punch directly (no photo).
+  const onConfirm = async () => {
     if (!position) {
       toast.error(t.locating)
       request()
       return
     }
-    setCameraOpen(true)
-  }
-
-  // Step 2: once a real photo is captured → upload it, then check in / out.
-  const onPhotoCaptured = async (photo: CapturedPhoto) => {
-    const lat = photo.lat ?? position?.lat
-    const lng = photo.lng ?? position?.lng
-    if (lat == null || lng == null) {
-      toast.error(t.locating)
-      return
-    }
     setSubmitting(true)
     try {
-      const type =
-        sheet === 'in'
-          ? CreateAttendanceUploadUrlRequestType.CHECK_IN
-          : CreateAttendanceUploadUrlRequestType.CHECK_OUT
-      const contentType =
-        photo.blob.type === 'image/png'
-          ? CreateAttendanceUploadUrlRequestContentType['image/png']
-          : photo.blob.type === 'image/webp'
-            ? CreateAttendanceUploadUrlRequestContentType['image/webp']
-            : CreateAttendanceUploadUrlRequestContentType['image/jpeg']
-
-      // 1. signed upload URL  2. PUT the captured photo  3. confirm check-in/out
-      const upload = await uploadUrlMutation.mutateAsync({ data: { type, contentType } })
-      await putPhotoBytes(upload.signedUploadUrl, photo.blob)
-
       const body = {
-        pendingUploadId: upload.pendingUploadId,
-        lat,
-        lng,
-        capturedAt: photo.capturedAt.toISOString()
+        lat: position.lat,
+        lng: position.lng,
+        capturedAt: new Date().toISOString()
       }
       if (sheet === 'in') {
         await checkInMutation.mutateAsync({ data: body })
@@ -168,7 +128,6 @@ export function CheckInSheet() {
         predicate: (q) => q.queryKey[0] === '/api/frontend/attendance'
       })
       toast.success(t.t_saved)
-      setCameraOpen(false)
       closeSheet()
     } catch (error) {
       if (error instanceof ApiError && error.status === 403) {
@@ -363,13 +322,6 @@ export function CheckInSheet() {
           </button>
         </div>
       </div>
-
-      {/* camera step — opens on Confirm; the captured photo drives check-in/out */}
-      <CameraCapture
-        open={cameraOpen}
-        onClose={() => setCameraOpen(false)}
-        onCapture={onPhotoCaptured}
-      />
     </div>
   )
 }

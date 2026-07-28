@@ -45,6 +45,21 @@ export function getDeviceUuid(): string | null {
   }
 }
 
+/**
+ * Persists a server-authoritative device UUID (e.g. the one returned by
+ * sign-in), so the client and backend can never diverge.
+ */
+export function setDeviceUuid(uuid: string): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    window.localStorage.setItem(DEVICE_UUID_KEY, uuid)
+  } catch {
+    // ignore
+  }
+}
+
 /** Clears the persisted device UUID (simulates "clear browser storage"). */
 export function clearDeviceUuid(): void {
   if (typeof window === 'undefined') {

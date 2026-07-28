@@ -40,7 +40,9 @@ export type ShellContextValue = {
 
   /** Active emergency broadcast state. */
   activeAlert: AlertState
-  setActiveAlert: (state: AlertState) => void
+  /** Backend emergency_logs id of the own in-flight alert ('active' only). */
+  activeAlertId: string | null
+  setActiveAlert: (state: AlertState, emergencyLogId?: string | null) => void
 }
 
 const ShellContext = createContext<ShellContextValue | null>(null)
@@ -51,7 +53,8 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [fabOpen, setFabOpen] = useState(false)
   const [online, setOnlineState] = useState(true)
   const [fontScale, setFontScaleState] = useState(DEFAULT_FONT_SCALE)
-  const [activeAlert, setActiveAlert] = useState<AlertState>('none')
+  const [activeAlert, setActiveAlertState] = useState<AlertState>('none')
+  const [activeAlertId, setActiveAlertId] = useState<string | null>(null)
 
   // Hydrate persisted font scale after mount.
   useEffect(() => {
@@ -99,6 +102,14 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     [fabOpen]
   )
 
+  const setActiveAlert = useCallback(
+    (state: AlertState, emergencyLogId: string | null = null) => {
+      setActiveAlertState(state)
+      setActiveAlertId(state === 'none' ? null : emergencyLogId)
+    },
+    []
+  )
+
   const setFontScale = useCallback((value: number) => {
     setFontScaleState(value)
     try {
@@ -120,6 +131,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       fontScale,
       setFontScale,
       activeAlert,
+      activeAlertId,
       setActiveAlert
     }),
     [
@@ -132,7 +144,9 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       online,
       fontScale,
       setFontScale,
-      activeAlert
+      activeAlert,
+      activeAlertId,
+      setActiveAlert
     ]
   )
 

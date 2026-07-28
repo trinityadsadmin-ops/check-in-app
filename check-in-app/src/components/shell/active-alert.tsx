@@ -12,9 +12,14 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useGetFrontendProfile } from '@/generated/api/frontend/frontend'
+import { useCancelEmergency, useCreateEmergency } from '@/generated/api/mobile/mobile'
+import { ApiError } from '@/lib/api/fetch-client'
 import { useGeolocation } from '@/lib/geo/use-geolocation'
 import { useI18n } from '@/lib/i18n/i18n-provider'
 import { useShell } from '@/lib/shell/shell-provider'
+
+/** Emergency category sent to the backend (matches the SOS panel). */
+const EMERGENCY_TYPE = 'PANIC'
 
 function pad(value: number): string {
   return value.toString().padStart(2, '0')
@@ -28,17 +33,30 @@ function pad(value: number): string {
  *  - `'active'`  → red broadcasting screen with employee / coordinates / elapsed
  *    timer and a cancel button.
  *  - `'queued'`  → dark offline screen explaining the alert is queued; reconnect
- *    (toggling `online` true) promotes it to `'active'`; cancel clears it.
+ *    (toggling `online` true) sends the queued emergency to the backend and
+ *    promotes it to `'active'`; cancel clears it.
+ *
+ * Cancelling an `'active'` alert resolves the backend emergency log (so it
+ * stops broadcasting to teammates) before clearing the local state.
  */
 export function ActiveAlert() {
   const { t } = useI18n()
-  const { activeAlert, setActiveAlert, online } = useShell()
+  const { activeAlert, activeAlertId, setActiveAlert, online } = useShell()
   const { coords, request } = useGeolocation()
   const profile = useGetFrontendProfile()
+  const createEmergency = useCreateEmergency()
+  const cancelEmergency = useCancelEmergency()
 
   const [elapsed, setElapsed] = useState(0)
   const startRef = useRef<number | null>(null)
   const prevState = useRef(activeAlert)
+  const sendingRef = useRef(false)
+  const coordsRef = useRef(coords)
+
+  // Keep the latest fix available to the queued-send effect.
+  useEffect(() => {
+    coordsRef.current = coords
+  }, [coords])
 
   const empName = profile.data?.user.fullName ?? t.alert_emp
 
@@ -67,15 +85,37 @@ export function ActiveAlert() {
     if (activeAlert !== 'none') request()
   }, [activeAlert, request])
 
-  // Reconnecting while queued promotes the alert to active.
+  // Reconnecting while queued sends the emergency for real, then promotes the
+  // alert to active with the created log id (so cancel can resolve it).
+  // Depends on the stable `mutateAsync` (not the mutation object, whose identity
+  // changes every render) so a failed send doesn't re-trigger in a retry loop —
+  // it re-runs only when connectivity or the alert state changes.
+  const sendEmergency = createEmergency.mutateAsync
   useEffect(() => {
-    if (online && activeAlert === 'queued') {
-      startRef.current = Date.now()
-      setElapsed(0)
-      setActiveAlert('active')
-      toast.success(t.t_alert_sent)
-    }
-  }, [online, activeAlert, setActiveAlert, t])
+    if (!online || activeAlert !== 'queued' || sendingRef.current) return
+    sendingRef.current = true
+    const point = coordsRef.current
+    sendEmergency({
+        data: {
+          lat: point?.lat ?? 0,
+          lng: point?.lng ?? 0,
+          emergencyType: EMERGENCY_TYPE,
+          triggeredAt: new Date().toISOString()
+        }
+      })
+      .then(({ emergencyLog }) => {
+        startRef.current = Date.now()
+        setElapsed(0)
+        setActiveAlert('active', emergencyLog.id)
+        toast.success(t.t_alert_sent)
+      })
+      .catch((error: unknown) => {
+        toast.error(error instanceof ApiError ? error.message : t.emergency)
+      })
+      .finally(() => {
+        sendingRef.current = false
+      })
+  }, [online, activeAlert, sendEmergency, setActiveAlert, t])
 
   // Toast on transition back to 'none' via cancel (not on initial mount).
   useEffect(() => {
@@ -87,7 +127,24 @@ export function ActiveAlert() {
 
   if (activeAlert === 'none') return null
 
-  const cancel = () => setActiveAlert('none')
+  // Resolve the backend log first so teammates stop seeing the alert; a queued
+  // (never-sent) alert has no backend row and is cleared locally.
+  const cancel = () => {
+    if (activeAlert === 'active' && activeAlertId) {
+      if (cancelEmergency.isPending) return
+      cancelEmergency.mutate(
+        { emergencyLogId: activeAlertId },
+        {
+          onSuccess: () => setActiveAlert('none'),
+          onError: (error: unknown) => {
+            toast.error(error instanceof ApiError ? error.message : t.emergency)
+          }
+        }
+      )
+      return
+    }
+    setActiveAlert('none')
+  }
   const liveGps = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '—'
   const elapsedLabel = `${pad(Math.floor(elapsed / 60))}:${pad(elapsed % 60)}`
 

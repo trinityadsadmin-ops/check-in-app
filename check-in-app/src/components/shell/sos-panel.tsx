@@ -83,7 +83,7 @@ export function SosPanel() {
     }
 
     try {
-      await createEmergency.mutateAsync({
+      const { emergencyLog } = await createEmergency.mutateAsync({
         data: {
           lat,
           lng,
@@ -91,7 +91,7 @@ export function SosPanel() {
           triggeredAt: new Date().toISOString()
         }
       })
-      setActiveAlert('active')
+      setActiveAlert('active', emergencyLog.id)
       sos.close()
     } catch (error) {
       const message = error instanceof ApiError ? error.message : t.emergency

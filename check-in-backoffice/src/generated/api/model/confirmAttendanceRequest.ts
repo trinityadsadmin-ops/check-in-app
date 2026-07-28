@@ -7,7 +7,7 @@
  */
 
 export interface ConfirmAttendanceRequest {
-  pendingUploadId: string;
+  pendingUploadId?: string;
   /**
    * @minimum -90
    * @maximum 90

@@ -10,6 +10,8 @@ import type { EmergencyLogStatus } from './emergencyLogStatus';
 export interface EmergencyLog {
   id: string;
   userId: string;
+  /** @nullable */
+  workLocationId: string | null;
   lat: number;
   lng: number;
   /** @nullable */

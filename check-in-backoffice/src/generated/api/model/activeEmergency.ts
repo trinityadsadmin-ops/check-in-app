@@ -5,9 +5,10 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
-import type { EmergencyLogStatus } from './emergencyLogStatus';
+import type { ActiveEmergencyStatus } from './activeEmergencyStatus';
+import type { ActiveEmergencyUser } from './activeEmergencyUser';
 
-export interface EmergencyLog {
+export interface ActiveEmergency {
   id: string;
   userId: string;
   /** @nullable */
@@ -18,13 +19,8 @@ export interface EmergencyLog {
   emergencyType: string | null;
   /** @nullable */
   message: string | null;
-  status: EmergencyLogStatus;
+  status: ActiveEmergencyStatus;
   triggeredAt: string;
   /** @nullable */
-  acknowledgedAt: string | null;
-  /** @nullable */
-  resolvedAt: string | null;
-  /** @nullable */
-  handledBy: string | null;
-  createdAt: string;
+  user: ActiveEmergencyUser;
 }
