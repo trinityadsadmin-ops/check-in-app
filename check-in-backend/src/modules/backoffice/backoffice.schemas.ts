@@ -264,6 +264,13 @@ export const AuditLogSchema = z
   .object({
     id: z.string().uuid(),
     actorUserId: z.string().uuid().nullable(),
+    actor: z
+      .object({
+        id: z.string().uuid(),
+        fullName: z.string().nullable(),
+        employeeCode: z.string().nullable()
+      })
+      .nullable(),
     action: z.string(),
     resourceType: z.string(),
     resourceId: z.string().nullable(),

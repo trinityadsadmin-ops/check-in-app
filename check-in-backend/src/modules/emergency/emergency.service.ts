@@ -91,6 +91,21 @@ const emergencySelect =
 
 const activeEmergencySelect = `${emergencySelect},user:profiles!emergency_logs_user_id_fkey(id,full_name,employee_code)`
 
+function mapEmergencyLogWithUser(row: ActiveEmergencyRow) {
+  const profile = firstProfile(row.user)
+
+  return {
+    ...mapEmergencyLog(row),
+    user: profile
+      ? {
+          id: profile.id,
+          fullName: profile.full_name,
+          employeeCode: profile.employee_code
+        }
+      : null
+  }
+}
+
 /** Resolve the caller's active work location (site). Returns null if unassigned. */
 async function getActiveWorkLocationId(userId: string) {
   const supabaseAdmin = requireSupabaseAdmin()
@@ -237,7 +252,7 @@ export async function listEmergencyLogs(query: ListEmergencyLogsQuery) {
 
   let request = supabaseAdmin
     .from('emergency_logs')
-    .select(emergencySelect, { count: 'exact' })
+    .select(activeEmergencySelect, { count: 'exact' })
     .order('triggered_at', { ascending: false })
     .range(from, to)
 
@@ -256,7 +271,7 @@ export async function listEmergencyLogs(query: ListEmergencyLogsQuery) {
   }
 
   return {
-    emergencyLogs: ((data ?? []) as EmergencyLogRow[]).map(mapEmergencyLog),
+    emergencyLogs: ((data ?? []) as unknown as ActiveEmergencyRow[]).map(mapEmergencyLogWithUser),
     page: query.page,
     perPage: query.perPage,
     total: count ?? 0

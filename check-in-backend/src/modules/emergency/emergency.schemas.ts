@@ -64,6 +64,17 @@ export const CreateEmergencyResponseSchema = z
   })
   .openapi('CreateEmergencyResponse')
 
+/** Backoffice list view: the same log record with the reporting employee attached. */
+export const EmergencyLogWithUserSchema = EmergencyLogSchema.extend({
+  user: z
+    .object({
+      id: z.string().uuid(),
+      fullName: z.string().nullable(),
+      employeeCode: z.string().nullable()
+    })
+    .nullable()
+}).openapi('EmergencyLogWithUser')
+
 export const ListEmergencyLogsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(20),
@@ -77,7 +88,7 @@ export const EmergencyLogIdParamSchema = z.object({
 
 export const ListEmergencyLogsResponseSchema = z
   .object({
-    emergencyLogs: z.array(EmergencyLogSchema),
+    emergencyLogs: z.array(EmergencyLogWithUserSchema),
     page: z.number(),
     perPage: z.number(),
     total: z.number()

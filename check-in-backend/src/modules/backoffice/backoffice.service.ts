@@ -80,6 +80,12 @@ type EmployeeWorkAreaRow = {
   updated_at: string
 }
 
+type ActorProfileRow = {
+  id: string
+  full_name: string | null
+  employee_code: string | null
+}
+
 type AuditLogRow = {
   id: string
   actor_user_id: string | null
@@ -90,6 +96,7 @@ type AuditLogRow = {
   user_agent: string | null
   metadata: unknown
   created_at: string
+  actor?: ActorProfileRow | ActorProfileRow[] | null
 }
 
 type EventLogRow = {
@@ -222,9 +229,18 @@ function mapWorkArea(row: EmployeeWorkAreaRow) {
 }
 
 function mapAuditLog(row: AuditLogRow) {
+  const actor = first(row.actor)
+
   return {
     id: row.id,
     actorUserId: row.actor_user_id,
+    actor: actor
+      ? {
+          id: actor.id,
+          fullName: actor.full_name,
+          employeeCode: actor.employee_code
+        }
+      : null,
     action: row.action,
     resourceType: row.resource_type,
     resourceId: row.resource_id,
@@ -883,9 +899,10 @@ export async function listAuditLogs(query: LogsQuery) {
   const to = from + query.perPage - 1
   const { data, error, count } = await supabaseAdmin
     .from('audit_logs')
-    .select('id,actor_user_id,action,resource_type,resource_id,ip_address,user_agent,metadata,created_at', {
-      count: 'exact'
-    })
+    .select(
+      'id,actor_user_id,action,resource_type,resource_id,ip_address,user_agent,metadata,created_at,actor:profiles!audit_logs_actor_user_id_fkey(id,full_name,employee_code)',
+      { count: 'exact' }
+    )
     .order('created_at', { ascending: false })
     .range(from, to)
 
