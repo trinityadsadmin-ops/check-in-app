@@ -5,10 +5,10 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
-import type { EmergencyLog } from './emergencyLog';
+import type { EmergencyLogWithUser } from './emergencyLogWithUser';
 
 export interface ListEmergencyLogsResponse {
-  emergencyLogs: EmergencyLog[];
+  emergencyLogs: EmergencyLogWithUser[];
   page: number;
   perPage: number;
   total: number;

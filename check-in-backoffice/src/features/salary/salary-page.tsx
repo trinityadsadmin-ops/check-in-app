@@ -10,20 +10,13 @@ import { TableSkeleton } from '@/components/data/table-skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle
 } from '@/components/ui/sheet'
@@ -524,7 +517,7 @@ export function SalaryPage() {
         </SheetContent>
       </Sheet>
 
-      <Dialog
+      <Sheet
         open={Boolean(deleteTargetBatch)}
         onOpenChange={(open) => {
           if (!open && !deleteUploadMutation.isPending) {
@@ -532,11 +525,11 @@ export function SalaryPage() {
           }
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('salary.deleteUploadTitle')}</DialogTitle>
-            <DialogDescription>{t('salary.deleteUploadDescription')}</DialogDescription>
-          </DialogHeader>
+        <SheetContent className="overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>{t('salary.deleteUploadTitle')}</SheetTitle>
+            <SheetDescription>{t('salary.deleteUploadDescription')}</SheetDescription>
+          </SheetHeader>
           <div className="mt-6 grid gap-3 rounded-md border p-4 text-sm">
             <div className="grid gap-1">
               <div className="text-muted-foreground">{t('common.file')}</div>
@@ -549,7 +542,7 @@ export function SalaryPage() {
               <div className="font-medium">{deleteTargetBatch?.successRows ?? 0}</div>
             </div>
           </div>
-          <DialogFooter className="mt-2">
+          <SheetFooter className="mt-2">
             <Button
               type="button"
               variant="outline"
@@ -571,9 +564,9 @@ export function SalaryPage() {
               <Trash2 className="size-4" />
               {t('salary.confirmDeleteUpload')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <Card>
         <CardHeader>
@@ -641,7 +634,7 @@ export function SalaryPage() {
         </CardContent>
       </Card>
 
-      <Dialog
+      <Sheet
         open={Boolean(deleteTargetRecord)}
         onOpenChange={(open) => {
           if (!open && !deleteRecordMutation.isPending) {
@@ -649,11 +642,11 @@ export function SalaryPage() {
           }
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('salary.deleteRecordTitle')}</DialogTitle>
-            <DialogDescription>{t('salary.deleteRecordDescription')}</DialogDescription>
-          </DialogHeader>
+        <SheetContent className="overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('salary.deleteRecordTitle')}</SheetTitle>
+            <SheetDescription>{t('salary.deleteRecordDescription')}</SheetDescription>
+          </SheetHeader>
           <div className="mt-6 grid gap-4 rounded-md border p-4 text-sm">
             <div className="grid gap-1">
               <div className="text-muted-foreground">{t('common.employee')}</div>
@@ -707,7 +700,7 @@ export function SalaryPage() {
               <div className="font-medium">{deleteTargetRecord?.note ?? '-'}</div>
             </div>
           </div>
-          <DialogFooter className="mt-2">
+          <SheetFooter className="mt-2">
             <Button
               type="button"
               variant="outline"
@@ -729,9 +722,9 @@ export function SalaryPage() {
               <Trash2 className="size-4" />
               {t('salary.confirmDeleteRecord')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

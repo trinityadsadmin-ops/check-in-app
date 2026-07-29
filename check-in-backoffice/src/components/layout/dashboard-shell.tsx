@@ -165,7 +165,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6">
+        <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
           {shouldCheckRoutePermission && profileQuery.isLoading ? (
             <EmptyState label={t('common.loading')} />
           ) : canAccessCurrentRoute ? (

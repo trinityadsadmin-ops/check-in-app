@@ -136,7 +136,16 @@ export function EmergencyPage() {
                     <TableCell className="font-medium">
                       {new Date(log.triggeredAt).toLocaleString(locale)}
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{log.userId}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">
+                        {log.user?.fullName ?? log.user?.employeeCode ?? log.userId}
+                      </div>
+                      {log.user?.fullName && log.user.employeeCode ? (
+                        <div className="text-xs text-muted-foreground">
+                          {log.user.employeeCode}
+                        </div>
+                      ) : null}
+                    </TableCell>
                     <TableCell>
                       <div>{log.emergencyType ?? '-'}</div>
                       <div className="text-xs text-muted-foreground">{log.message ?? ''}</div>

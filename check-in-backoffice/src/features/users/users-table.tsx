@@ -20,15 +20,6 @@ import {
   CommandItem,
   CommandList
 } from '@/components/ui/command'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -46,6 +37,15 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger
+} from '@/components/ui/sheet'
 import {
   Table,
   TableBody,
@@ -112,7 +112,7 @@ export function UsersTable() {
   const [permissionSearch, setPermissionSearch] = useState('')
   const [grantedPermissionKeys, setGrantedPermissionKeys] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState<UsersTab>('list')
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false)
   const [userPage, setUserPage] = useState(1)
   const [usersPerPage, setUsersPerPage] = useState(20)
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
@@ -199,7 +199,7 @@ export function UsersTable() {
       setPassword('')
       setFullName('')
       setEmployeeCode('')
-      setIsCreateDialogOpen(false)
+      setIsCreateSheetOpen(false)
       setActiveTab('list')
       setUserPage(1)
       queryClient.invalidateQueries({ queryKey: ['backoffice-users'] })
@@ -369,7 +369,7 @@ export function UsersTable() {
 
   return (
     <>
-    <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+    <Sheet open={isCreateSheetOpen} onOpenChange={setIsCreateSheetOpen}>
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as UsersTab)}
@@ -383,12 +383,12 @@ export function UsersTable() {
             ) : null}
           </TabsList>
           {canOpenCreateUsers ? (
-            <DialogTrigger asChild>
+            <SheetTrigger asChild>
               <Button type="button">
                 <Plus className="size-4" />
                 {t('users.tabCreate')}
               </Button>
-            </DialogTrigger>
+            </SheetTrigger>
           ) : null}
         </div>
 
@@ -740,10 +740,10 @@ export function UsersTable() {
       ) : null}
       </Tabs>
 
-      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{t('users.createTitle')}</DialogTitle>
-        </DialogHeader>
+      <SheetContent className="overflow-y-auto sm:max-w-2xl">
+        <SheetHeader>
+          <SheetTitle>{t('users.createTitle')}</SheetTitle>
+        </SheetHeader>
         <form
           className="grid gap-4 sm:grid-cols-2"
           onSubmit={(event) => {
@@ -828,21 +828,21 @@ export function UsersTable() {
               />
             </div>
           ) : null}
-          <DialogFooter className="sm:col-span-2">
-            <DialogClose asChild>
+          <SheetFooter className="sm:col-span-2">
+            <SheetClose asChild>
               <Button type="button" variant="outline" disabled={createMutation.isPending}>
                 {t('common.cancel')}
               </Button>
-            </DialogClose>
+            </SheetClose>
             <Button type="submit" disabled={createMutation.isPending || !roleId || !canCreateUsers}>
               <Plus className="size-4" />
               {t('common.create')}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
-    <Dialog
+      </SheetContent>
+    </Sheet>
+    <Sheet
       open={Boolean(viewedWorkAreaUser)}
       onOpenChange={(open) => {
         if (!open) {
@@ -850,10 +850,10 @@ export function UsersTable() {
         }
       }}
     >
-      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{t('users.viewWorkLocation')}</DialogTitle>
-        </DialogHeader>
+      <SheetContent className="overflow-y-auto sm:max-w-3xl">
+        <SheetHeader>
+          <SheetTitle>{t('users.viewWorkLocation')}</SheetTitle>
+        </SheetHeader>
         <div className="grid gap-4">
           <div className="grid gap-1">
             <div className="font-medium">
@@ -897,15 +897,15 @@ export function UsersTable() {
             )
           ) : null}
         </div>
-        <DialogFooter>
-          <DialogClose asChild>
+        <SheetFooter>
+          <SheetClose asChild>
             <Button type="button" variant="outline">
               {t('common.cancel')}
             </Button>
-          </DialogClose>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </SheetClose>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
     </>
   )
 }

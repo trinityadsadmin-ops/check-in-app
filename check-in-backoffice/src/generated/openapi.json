@@ -2019,7 +2019,7 @@
           "emergencyLogs": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/EmergencyLog"
+              "$ref": "#/components/schemas/EmergencyLogWithUser"
             }
           },
           "page": {
@@ -2037,6 +2037,44 @@
           "page",
           "perPage",
           "total"
+        ]
+      },
+      "EmergencyLogWithUser": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EmergencyLog"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "user": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "employeeCode": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "fullName",
+                  "employeeCode"
+                ]
+              }
+            },
+            "required": [
+              "user"
+            ]
+          }
         ]
       },
       "UpdateEmergencyLogRequest": {
@@ -2316,6 +2354,29 @@
             "nullable": true,
             "format": "uuid"
           },
+          "actor": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "fullName": {
+                "type": "string",
+                "nullable": true
+              },
+              "employeeCode": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "fullName",
+              "employeeCode"
+            ]
+          },
           "action": {
             "type": "string"
           },
@@ -2345,6 +2406,7 @@
         "required": [
           "id",
           "actorUserId",
+          "actor",
           "action",
           "resourceType",
           "resourceId",

@@ -63,7 +63,9 @@ export function LogsPage() {
                           </span>
                         ) : null}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{log.actorUserId ?? '-'}</TableCell>
+                      <TableCell>
+                        {log.actor?.fullName ?? log.actor?.employeeCode ?? log.actorUserId ?? '-'}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

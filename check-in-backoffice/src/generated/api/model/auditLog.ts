@@ -5,12 +5,15 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
+import type { AuditLogActor } from './auditLogActor';
 import type { AuditLogMetadata } from './auditLogMetadata';
 
 export interface AuditLog {
   id: string;
   /** @nullable */
   actorUserId: string | null;
+  /** @nullable */
+  actor: AuditLogActor;
   action: string;
   resourceType: string;
   /** @nullable */

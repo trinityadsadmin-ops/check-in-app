@@ -13,15 +13,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
@@ -39,6 +30,15 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle
+} from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Textarea } from '@/components/ui/textarea'
 import type { AreaInspection, AreaInspectionReviewStatus } from '@/generated/api/model'
@@ -363,7 +363,7 @@ export function AreaInspectionsPage() {
         ) : null}
       </CardContent>
 
-      <Dialog
+      <Sheet
         open={pendingDelete !== null}
         onOpenChange={(open) => {
           if (!open) {
@@ -371,17 +371,17 @@ export function AreaInspectionsPage() {
           }
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('areaInspections.deleteTitle')}</DialogTitle>
-            <DialogDescription>
+        <SheetContent className="overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>{t('areaInspections.deleteTitle')}</SheetTitle>
+            <SheetDescription>
               {t('areaInspections.deleteDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
+            </SheetDescription>
+          </SheetHeader>
+          <SheetFooter>
+            <SheetClose asChild>
               <Button variant="outline">{t('common.cancel')}</Button>
-            </DialogClose>
+            </SheetClose>
             <Button
               variant="destructive"
               disabled={deleteMutation.isPending}
@@ -393,10 +393,10 @@ export function AreaInspectionsPage() {
             >
               {t('areaInspections.confirmDelete')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+      <Sheet
         open={pendingReview !== null}
         onOpenChange={(open) => {
           if (!open) {
@@ -405,11 +405,11 @@ export function AreaInspectionsPage() {
           }
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('areaInspections.reviewTitle')}</DialogTitle>
-            <DialogDescription>{t('areaInspections.reviewDescription')}</DialogDescription>
-          </DialogHeader>
+        <SheetContent className="overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('areaInspections.reviewTitle')}</SheetTitle>
+            <SheetDescription>{t('areaInspections.reviewDescription')}</SheetDescription>
+          </SheetHeader>
           {pendingReview ? (
             <div className="grid gap-4">
               <div className="grid gap-1 rounded-md border p-3 text-sm">
@@ -467,12 +467,12 @@ export function AreaInspectionsPage() {
               ) : null}
             </div>
           ) : null}
-          <DialogFooter>
-            <DialogClose asChild>
+          <SheetFooter>
+            <SheetClose asChild>
               <Button variant="outline" disabled={reviewMutation.isPending}>
                 {t('common.cancel')}
               </Button>
-            </DialogClose>
+            </SheetClose>
             <Button
               disabled={
                 !canReview ||
@@ -484,9 +484,9 @@ export function AreaInspectionsPage() {
               <ClipboardCheck className="size-4" />
               {t('areaInspections.saveReview')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </Card>
   )
 }

@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import 'leaflet/dist/leaflet.css'
 import './globals.css'
 import { AppProviders } from '@/components/providers/app-providers'
+
+const fontSans = Inter({ subsets: ['latin'], variable: '--font-app-sans' })
 
 export const metadata: Metadata = {
   title: 'Check-in Backoffice',
@@ -15,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
+      <body className={`${fontSans.variable} antialiased`}>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

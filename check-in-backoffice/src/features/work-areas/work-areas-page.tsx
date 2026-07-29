@@ -7,20 +7,29 @@ import { toast } from 'sonner'
 import { EmptyState } from '@/components/data/empty-state'
 import { ErrorBanner } from '@/components/data/error-banner'
 import { TableSkeleton } from '@/components/data/table-skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger
+} from '@/components/ui/sheet'
 import {
   Table,
   TableBody,
@@ -30,6 +39,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LatLngNode } from '@/generated/api/model'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -43,6 +53,7 @@ import {
 } from '@/lib/api/backoffice'
 import { getErrorMessage } from '@/lib/api/errors'
 import { useI18n } from '@/lib/i18n'
+import { cn } from '@/lib/utils'
 import { UserCombobox } from '../users/user-combobox'
 import { getDefaultAreaNodes, MapAreaEditor } from './map-area-editor'
 
@@ -56,6 +67,8 @@ export function WorkAreasPage() {
   const [createDescription, setCreateDescription] = useState('')
   const [createAreaNodes, setCreateAreaNodes] = useState<LatLngNode[]>(getDefaultAreaNodes())
   const [selectedLocationId, setSelectedLocationId] = useState('')
+  const [isManageSheetOpen, setIsManageSheetOpen] = useState(false)
+  const [isDisableConfirmOpen, setIsDisableConfirmOpen] = useState(false)
   const [locationName, setLocationName] = useState('')
   const [locationDescription, setLocationDescription] = useState('')
   const [areaNodes, setAreaNodes] = useState<LatLngNode[]>(getDefaultAreaNodes())
@@ -84,13 +97,6 @@ export function WorkAreasPage() {
   const assignedUsers = locationUsersQuery.data?.users ?? []
 
   useEffect(() => {
-    if (!selectedLocationId) {
-      const firstActiveLocation = workLocations.find((location) => location.isActive)
-      setSelectedLocationId(firstActiveLocation?.id ?? workLocations[0]?.id ?? '')
-    }
-  }, [selectedLocationId, workLocations])
-
-  useEffect(() => {
     if (!selectedLocation) {
       return
     }
@@ -100,6 +106,16 @@ export function WorkAreasPage() {
     setAreaNodes(selectedLocation.areaNodes)
     setSelectedUserId('')
   }, [selectedLocation])
+
+  function handleCancelAreaEdits() {
+    if (!selectedLocation) {
+      return
+    }
+
+    setLocationName(selectedLocation.name)
+    setLocationDescription(selectedLocation.description ?? '')
+    setAreaNodes(selectedLocation.areaNodes)
+  }
 
   function showActionError(error: unknown) {
     toast.error(t('toast.actionFailed'), {
@@ -179,17 +195,20 @@ export function WorkAreasPage() {
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle>{t('workAreas.locationsTitle')}</CardTitle>
           {canManageWorkAreas ? (
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
+            <Sheet open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <SheetTrigger asChild>
                 <Button type="button">
                   <Plus className="size-4" />
                   {t('workAreas.createLocation')}
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-3xl">
-                <DialogHeader>
-                  <DialogTitle>{t('workAreas.createLocation')}</DialogTitle>
-                </DialogHeader>
+              </SheetTrigger>
+              <SheetContent
+                side="right"
+                className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-[80vw]"
+              >
+                <SheetHeader className="pr-8 text-left">
+                  <SheetTitle>{t('workAreas.createLocation')}</SheetTitle>
+                </SheetHeader>
                 <form
                   className="grid gap-4"
                   onSubmit={(event) => {
@@ -197,43 +216,48 @@ export function WorkAreasPage() {
                     createLocationMutation.mutate()
                   }}
                 >
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="create-location-name">{t('workAreas.locationName')}</Label>
-                      <Input
-                        id="create-location-name"
-                        value={createName}
-                        onChange={(event) => setCreateName(event.target.value)}
-                        required
-                      />
+                  <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+                    <div className="grid content-start gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="create-location-name">{t('workAreas.locationName')}</Label>
+                        <Input
+                          id="create-location-name"
+                          value={createName}
+                          onChange={(event) => setCreateName(event.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="create-location-description">{t('common.description')}</Label>
+                        <Textarea
+                          id="create-location-description"
+                          value={createDescription}
+                          onChange={(event) => setCreateDescription(event.target.value)}
+                        />
+                      </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="create-location-description">{t('common.description')}</Label>
-                      <Input
-                        id="create-location-description"
-                        value={createDescription}
-                        onChange={(event) => setCreateDescription(event.target.value)}
-                      />
-                    </div>
+                    <MapAreaEditor value={createAreaNodes} onChange={setCreateAreaNodes} />
                   </div>
-                  <MapAreaEditor value={createAreaNodes} onChange={setCreateAreaNodes} />
                   {createLocationMutation.isError ? (
                     <ErrorBanner error={createLocationMutation.error} />
                   ) : null}
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="outline" disabled={createLocationMutation.isPending}>
-                        {t('common.cancel')}
-                      </Button>
-                    </DialogClose>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={createLocationMutation.isPending}
+                      onClick={() => setIsCreateDialogOpen(false)}
+                    >
+                      {t('common.cancel')}
+                    </Button>
                     <Button type="submit" disabled={createLocationMutation.isPending || !createName.trim()}>
                       <Plus className="size-4" />
                       {t('common.create')}
                     </Button>
-                  </DialogFooter>
+                  </div>
                 </form>
-              </DialogContent>
-            </Dialog>
+              </SheetContent>
+            </Sheet>
           ) : null}
         </CardHeader>
         <CardContent>
@@ -270,7 +294,10 @@ export function WorkAreasPage() {
                           type="button"
                           variant={location.id === selectedLocationId ? 'secondary' : 'outline'}
                           size="sm"
-                          onClick={() => setSelectedLocationId(location.id)}
+                          onClick={() => {
+                            setSelectedLocationId(location.id)
+                            setIsManageSheetOpen(true)
+                          }}
                         >
                           {t('workAreas.manageLocation')}
                         </Button>
@@ -286,157 +313,209 @@ export function WorkAreasPage() {
         </CardContent>
       </Card>
 
-      {selectedLocation ? (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <div className="grid gap-1">
-              <CardTitle>{selectedLocation.name}</CardTitle>
-              {selectedLocation.description ? (
-                <p className="text-sm text-muted-foreground">{selectedLocation.description}</p>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={selectedLocation.isActive ? 'outline' : 'secondary'}>
-                {selectedLocation.isActive ? t('common.active') : t('common.inactive')}
-              </Badge>
-              {canManageWorkAreas ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={toggleLocationMutation.isPending}
-                  onClick={() => toggleLocationMutation.mutate()}
-                >
-                  {selectedLocation.isActive ? t('common.disable') : t('common.enable')}
-                </Button>
-              ) : null}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="area" className="gap-5">
-              <TabsList>
-                <TabsTrigger value="area">{t('workAreas.areaTitle')}</TabsTrigger>
-                <TabsTrigger value="employees">{t('workAreas.assignedEmployees')}</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="area" className="grid gap-5">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="location-name">{t('workAreas.locationName')}</Label>
-                    <Input
-                      id="location-name"
-                      value={locationName}
-                      disabled={!canManageWorkAreas}
-                      onChange={(event) => setLocationName(event.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="location-description">{t('common.description')}</Label>
-                    <Input
-                      id="location-description"
-                      value={locationDescription}
-                      disabled={!canManageWorkAreas}
-                      onChange={(event) => setLocationDescription(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <MapAreaEditor
-                  value={areaNodes}
-                  onChange={setAreaNodes}
-                  disabled={!canManageWorkAreas}
-                />
-                {updateLocationMutation.isError ? <ErrorBanner error={updateLocationMutation.error} /> : null}
-                <div className="flex justify-end">
-                  <Button
-                    disabled={
-                      !canManageWorkAreas ||
-                      updateLocationMutation.isPending ||
-                      !locationName.trim()
-                    }
-                    onClick={() => updateLocationMutation.mutate()}
-                  >
-                    <Save className="size-4" />
-                    {t('common.save')}
-                  </Button>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="employees" className="grid gap-5">
-                <div className="flex flex-col gap-3 border-b pb-5 sm:flex-row sm:items-end">
-                  <div className="grid w-full gap-2 sm:max-w-md">
-                    <Label htmlFor="location-user">{t('common.employee')}</Label>
-                    <UserCombobox
-                      value={selectedUserId}
-                      disabled={!canManageWorkAreas || !selectedLocation.isActive}
-                      placeholder={t('workAreas.userSearchPlaceholder')}
-                      onValueChange={setSelectedUserId}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    disabled={
-                      !canManageWorkAreas ||
-                      !selectedLocation.isActive ||
-                      !selectedUserId ||
-                      assignUserMutation.isPending
-                    }
-                    onClick={() => assignUserMutation.mutate()}
-                  >
-                    <Plus className="size-4" />
-                    {t('workAreas.assignEmployee')}
-                  </Button>
-                </div>
-
-                {locationUsersQuery.isLoading ? <TableSkeleton rows={3} /> : null}
-                {locationUsersQuery.isError ? <ErrorBanner error={locationUsersQuery.error} /> : null}
-                {assignUserMutation.isError ? <ErrorBanner error={assignUserMutation.error} /> : null}
-                {unassignUserMutation.isError ? <ErrorBanner error={unassignUserMutation.error} /> : null}
-
-                {locationUsersQuery.data ? (
-                  assignedUsers.length > 0 ? (
-                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                      {assignedUsers.map((user) => (
-                        <div
-                          key={user.id}
-                          className="flex min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2"
-                        >
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium">
-                              {user.fullName ?? user.email ?? user.id}
-                            </div>
-                            <div className="truncate text-xs text-muted-foreground">
-                              {[user.employeeCode, user.email].filter(Boolean).join(' · ')}
-                            </div>
-                          </div>
-                          {canManageWorkAreas ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  aria-label={t('common.remove')}
-                                  disabled={unassignUserMutation.isPending}
-                                  onClick={() => unassignUserMutation.mutate(user.id)}
-                                >
-                                  <Trash2 className="size-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{t('common.remove')}</TooltipContent>
-                            </Tooltip>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState label={t('workAreas.emptyAssignedEmployees')} />
-                  )
+      <Sheet
+        open={isManageSheetOpen}
+        onOpenChange={(open) => {
+          setIsManageSheetOpen(open)
+          if (!open) {
+            setSelectedLocationId('')
+          }
+        }}
+      >
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-[80vw]"
+        >
+          {selectedLocation ? (
+            <>
+              <SheetHeader className="pr-8 text-left">
+                <SheetTitle>{selectedLocation.name}</SheetTitle>
+                {selectedLocation.description ? (
+                  <SheetDescription>{selectedLocation.description}</SheetDescription>
                 ) : null}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      ) : null}
+              </SheetHeader>
+              <Tabs defaultValue="area" className="gap-5">
+                <TabsList>
+                  <TabsTrigger value="area">{t('workAreas.areaTitle')}</TabsTrigger>
+                  <TabsTrigger value="employees">{t('workAreas.assignedEmployees')}</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="area" className="grid gap-5">
+                  <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+                    <div className="grid content-start gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="location-name">{t('workAreas.locationName')}</Label>
+                        <Input
+                          id="location-name"
+                          value={locationName}
+                          disabled={!canManageWorkAreas}
+                          onChange={(event) => setLocationName(event.target.value)}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="location-description">{t('common.description')}</Label>
+                        <Textarea
+                          id="location-description"
+                          value={locationDescription}
+                          disabled={!canManageWorkAreas}
+                          onChange={(event) => setLocationDescription(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <MapAreaEditor
+                      value={areaNodes}
+                      onChange={setAreaNodes}
+                      disabled={!canManageWorkAreas}
+                    />
+                  </div>
+                  {updateLocationMutation.isError ? (
+                    <ErrorBanner error={updateLocationMutation.error} />
+                  ) : null}
+                  <div className="flex items-center justify-between">
+                    {canManageWorkAreas ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          selectedLocation.isActive &&
+                            'border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
+                        )}
+                        disabled={toggleLocationMutation.isPending}
+                        onClick={() => {
+                          if (selectedLocation.isActive) {
+                            setIsDisableConfirmOpen(true)
+                          } else {
+                            toggleLocationMutation.mutate()
+                          }
+                        }}
+                      >
+                        {selectedLocation.isActive ? t('common.disable') : t('common.enable')}
+                      </Button>
+                    ) : (
+                      <div />
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={updateLocationMutation.isPending}
+                        onClick={() => {
+                          handleCancelAreaEdits()
+                          setIsManageSheetOpen(false)
+                        }}
+                      >
+                        {t('common.cancel')}
+                      </Button>
+                      <Button
+                        disabled={
+                          !canManageWorkAreas ||
+                          updateLocationMutation.isPending ||
+                          !locationName.trim()
+                        }
+                        onClick={() => updateLocationMutation.mutate()}
+                      >
+                        <Save className="size-4" />
+                        {t('common.save')}
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="employees" className="grid gap-5">
+                  <div className="flex flex-col gap-3 border-b pb-5 sm:flex-row sm:items-end">
+                    <div className="grid w-full gap-2 sm:max-w-md">
+                      <Label htmlFor="location-user">{t('common.employee')}</Label>
+                      <UserCombobox
+                        value={selectedUserId}
+                        disabled={!canManageWorkAreas || !selectedLocation.isActive}
+                        placeholder={t('workAreas.userSearchPlaceholder')}
+                        onValueChange={setSelectedUserId}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={
+                        !canManageWorkAreas ||
+                        !selectedLocation.isActive ||
+                        !selectedUserId ||
+                        assignUserMutation.isPending
+                      }
+                      onClick={() => assignUserMutation.mutate()}
+                    >
+                      <Plus className="size-4" />
+                      {t('workAreas.assignEmployee')}
+                    </Button>
+                  </div>
+
+                  {locationUsersQuery.isLoading ? <TableSkeleton rows={3} /> : null}
+                  {locationUsersQuery.isError ? <ErrorBanner error={locationUsersQuery.error} /> : null}
+                  {assignUserMutation.isError ? <ErrorBanner error={assignUserMutation.error} /> : null}
+                  {unassignUserMutation.isError ? (
+                    <ErrorBanner error={unassignUserMutation.error} />
+                  ) : null}
+
+                  {locationUsersQuery.data ? (
+                    assignedUsers.length > 0 ? (
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        {assignedUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            className="flex min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium">
+                                {user.fullName ?? user.email ?? user.id}
+                              </div>
+                              <div className="truncate text-xs text-muted-foreground">
+                                {[user.employeeCode, user.email].filter(Boolean).join(' · ')}
+                              </div>
+                            </div>
+                            {canManageWorkAreas ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={t('common.remove')}
+                                    disabled={unassignUserMutation.isPending}
+                                    onClick={() => unassignUserMutation.mutate(user.id)}
+                                  >
+                                    <Trash2 className="size-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{t('common.remove')}</TooltipContent>
+                              </Tooltip>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState label={t('workAreas.emptyAssignedEmployees')} />
+                    )
+                  ) : null}
+                </TabsContent>
+              </Tabs>
+              <AlertDialog open={isDisableConfirmOpen} onOpenChange={setIsDisableConfirmOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('workAreas.confirmDisableTitle')}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('workAreas.confirmDisableDescription')} {selectedLocation.name}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => toggleLocationMutation.mutate()}>
+                      {t('common.disable')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
