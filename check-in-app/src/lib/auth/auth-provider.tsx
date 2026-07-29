@@ -102,6 +102,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.device?.deviceUuid) {
         setDeviceUuid(response.device.deviceUuid)
       }
+      // Abort any /me request still in flight from a previous (possibly stale/invalid)
+      // token before writing the new one. Without this, invalidateQueries() below can
+      // no-op and reuse that stale request's promise — when it later resolves 401, the
+      // isError effect wipes the session we're about to set.
+      await queryClient.cancelQueries({ queryKey: getGetCurrentUserQueryKey() })
       setStoredSession({
         accessToken: response.session.accessToken,
         refreshToken: response.session.refreshToken
