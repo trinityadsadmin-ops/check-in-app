@@ -9,4 +9,5 @@
 export interface SetEmployeeWorkAreaRequest {
   workLocationId: string;
   isActive?: boolean;
+  allowReassignment?: boolean;
 }

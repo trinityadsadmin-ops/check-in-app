@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,6 +46,7 @@ import type { LatLngNode } from '@/generated/api/model'
 import { usePermissions } from '@/hooks/use-permissions'
 import {
   createWorkLocation,
+  getUserWorkArea,
   listWorkLocationUsers,
   listWorkLocations,
   setUserWorkArea,
@@ -62,6 +64,12 @@ export function WorkAreasPage() {
   const { t } = useI18n()
   const { has, permissions } = usePermissions()
   const canManageWorkAreas = has(permissions.workAreasManage)
+  const resolveErrorCode = (code: string) => {
+    const key = `errors.${code}`
+    const message = t(key)
+
+    return message === key ? undefined : message
+  }
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [createName, setCreateName] = useState('')
   const [createDescription, setCreateDescription] = useState('')
@@ -73,6 +81,7 @@ export function WorkAreasPage() {
   const [locationDescription, setLocationDescription] = useState('')
   const [areaNodes, setAreaNodes] = useState<LatLngNode[]>(getDefaultAreaNodes())
   const [selectedUserId, setSelectedUserId] = useState('')
+  const [isReassignConfirmOpen, setIsReassignConfirmOpen] = useState(false)
 
   const locationsQuery = useQuery({
     queryKey: ['work-locations'],
@@ -95,6 +104,16 @@ export function WorkAreasPage() {
     enabled: Boolean(selectedLocationId)
   })
   const assignedUsers = locationUsersQuery.data?.users ?? []
+  const selectedUserWorkAreaQuery = useQuery({
+    queryKey: ['user-work-area', selectedUserId],
+    queryFn: () => getUserWorkArea(selectedUserId),
+    enabled: Boolean(selectedUserId)
+  })
+  const selectedUserCurrentLocation = useMemo(() => {
+    const workLocationId = selectedUserWorkAreaQuery.data?.workArea?.workLocationId
+
+    return workLocationId ? workLocations.find((location) => location.id === workLocationId) ?? null : null
+  }, [selectedUserWorkAreaQuery.data?.workArea?.workLocationId, workLocations])
 
   useEffect(() => {
     if (!selectedLocation) {
@@ -119,7 +138,7 @@ export function WorkAreasPage() {
 
   function showActionError(error: unknown) {
     toast.error(t('toast.actionFailed'), {
-      description: getErrorMessage(error)
+      description: getErrorMessage(error, resolveErrorCode)
     })
   }
 
@@ -168,14 +187,28 @@ export function WorkAreasPage() {
     onError: showActionError
   })
   const assignUserMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: ({
+      allowReassignment,
+      previousWorkLocationId
+    }: {
+      allowReassignment: boolean
+      previousWorkLocationId?: string
+    }) =>
       setUserWorkArea(selectedUserId, {
         workLocationId: selectedLocationId,
-        isActive: true
+        isActive: true,
+        allowReassignment
       }),
-    onSuccess: () => {
+    onSuccess: (_response, variables) => {
       setSelectedUserId('')
+      setIsReassignConfirmOpen(false)
       queryClient.invalidateQueries({ queryKey: ['work-location-users', selectedLocationId] })
+      if (variables.previousWorkLocationId) {
+        queryClient.invalidateQueries({
+          queryKey: ['work-location-users', variables.previousWorkLocationId]
+        })
+      }
+      queryClient.invalidateQueries({ queryKey: ['user-work-area'] })
       toast.success(t('workAreas.toastUserAssigned'))
     },
     onError: showActionError
@@ -188,6 +221,17 @@ export function WorkAreasPage() {
     },
     onError: showActionError
   })
+
+  function handleAssignUser() {
+    const currentWorkArea = selectedUserWorkAreaQuery.data?.workArea
+
+    if (!currentWorkArea || currentWorkArea.workLocationId === selectedLocationId) {
+      assignUserMutation.mutate({ allowReassignment: false })
+      return
+    }
+
+    setIsReassignConfirmOpen(true)
+  }
 
   return (
     <div className="grid gap-6">
@@ -438,18 +482,34 @@ export function WorkAreasPage() {
                         !canManageWorkAreas ||
                         !selectedLocation.isActive ||
                         !selectedUserId ||
+                        selectedUserWorkAreaQuery.isLoading ||
+                        selectedUserWorkAreaQuery.data?.workArea?.workLocationId === selectedLocationId ||
                         assignUserMutation.isPending
                       }
-                      onClick={() => assignUserMutation.mutate()}
+                      onClick={handleAssignUser}
                     >
                       <Plus className="size-4" />
                       {t('workAreas.assignEmployee')}
                     </Button>
                   </div>
 
+                  {selectedUserCurrentLocation &&
+                  selectedUserCurrentLocation.id !== selectedLocationId ? (
+                    <Alert>
+                      <AlertDescription>
+                        {t('workAreas.reassignmentNotice')} {selectedUserCurrentLocation.name}
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+
                   {locationUsersQuery.isLoading ? <TableSkeleton rows={3} /> : null}
                   {locationUsersQuery.isError ? <ErrorBanner error={locationUsersQuery.error} /> : null}
-                  {assignUserMutation.isError ? <ErrorBanner error={assignUserMutation.error} /> : null}
+                  {assignUserMutation.isError ? (
+                    <ErrorBanner
+                      error={assignUserMutation.error}
+                      message={getErrorMessage(assignUserMutation.error, resolveErrorCode)}
+                    />
+                  ) : null}
                   {unassignUserMutation.isError ? (
                     <ErrorBanner error={unassignUserMutation.error} />
                   ) : null}
@@ -508,6 +568,34 @@ export function WorkAreasPage() {
                     <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                     <AlertDialogAction onClick={() => toggleLocationMutation.mutate()}>
                       {t('common.disable')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog open={isReassignConfirmOpen} onOpenChange={setIsReassignConfirmOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('workAreas.confirmReassignmentTitle')}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('workAreas.confirmReassignmentDescription')}{' '}
+                      {selectedUserCurrentLocation?.name ?? '-'} {t('workAreas.toLocation')}{' '}
+                      {selectedLocation.name}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={assignUserMutation.isPending}
+                      onClick={() =>
+                        assignUserMutation.mutate({
+                          allowReassignment: true,
+                          ...(selectedUserCurrentLocation
+                            ? { previousWorkLocationId: selectedUserCurrentLocation.id }
+                            : {})
+                        })
+                      }
+                    >
+                      {t('workAreas.confirmReassignment')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

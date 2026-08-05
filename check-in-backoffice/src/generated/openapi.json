@@ -1931,6 +1931,10 @@
           "isActive": {
             "type": "boolean",
             "default": true
+          },
+          "allowReassignment": {
+            "type": "boolean",
+            "default": false
           }
         },
         "required": [

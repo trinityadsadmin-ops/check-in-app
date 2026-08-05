@@ -245,7 +245,8 @@ export const EmployeeWorkAreaSchema = z
 export const SetEmployeeWorkAreaRequestSchema = z
   .object({
     workLocationId: z.string().uuid(),
-    isActive: z.boolean().default(true)
+    isActive: z.boolean().default(true),
+    allowReassignment: z.boolean().default(false)
   })
   .openapi('SetEmployeeWorkAreaRequest')
 

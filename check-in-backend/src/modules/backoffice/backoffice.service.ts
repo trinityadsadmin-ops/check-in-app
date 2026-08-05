@@ -2,7 +2,8 @@ import {
   badRequest,
   employeeCodeAlreadyExists,
   forbidden,
-  notFound
+  notFound,
+  userAlreadyAssignedToWorkLocation
 } from '../../core/errors/http-error.js'
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { getActiveDeviceBinding, resetDeviceBinding } from '../auth/device.service.js'
@@ -815,6 +816,13 @@ export async function setUserWorkArea(input: {
   }
 
   const existing = await getUserWorkArea(input.userId)
+  const previousWorkLocationId = existing.workArea?.workLocationId
+  const isReassignment =
+    previousWorkLocationId !== undefined && previousWorkLocationId !== input.payload.workLocationId
+
+  if (isReassignment && !input.payload.allowReassignment) {
+    throw userAlreadyAssignedToWorkLocation(previousWorkLocationId)
+  }
 
   const values = {
     user_id: input.userId,
@@ -841,12 +849,17 @@ export async function setUserWorkArea(input: {
 
   await writeAuditLog({
     actorUserId: input.actorUserId,
-    action: existing.workArea ? 'work_area.update' : 'work_area.create',
+    action: isReassignment
+      ? 'work_area.reassign'
+      : existing.workArea
+        ? 'work_area.update'
+        : 'work_area.create',
     resourceType: 'employee_work_area',
     resourceId: (data as EmployeeWorkAreaRow).id,
     metadata: {
       userId: input.userId,
-      workLocationId: input.payload.workLocationId
+      workLocationId: input.payload.workLocationId,
+      ...(isReassignment ? { previousWorkLocationId } : {})
     },
     c: input.c
   })
