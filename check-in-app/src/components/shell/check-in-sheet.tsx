@@ -8,7 +8,7 @@ import GeofenceMap from '@/components/map/geofence-map'
 import type { LatLng } from '@/components/map/geofence-map'
 import { useCheckIn, useCheckOut } from '@/generated/api/mobile/mobile'
 import {
-  useGetFrontendWorkArea,
+  useGetFrontendWorkAreas,
   useListFrontendAttendance
 } from '@/generated/api/frontend/frontend'
 import { ApiError } from '@/lib/api/fetch-client'
@@ -33,12 +33,21 @@ export function CheckInSheet() {
 
   const isOpen = sheet === 'in' || sheet === 'out'
 
-  // Work-area polygon: prefer the user's ASSIGNED work area (available before any
-  // check-in), falling back to the snapshot on their most recent attendance event.
+  const position = coords ? { lat: coords.lat, lng: coords.lng } : null
+
+  // Prefer the assigned polygon containing the current GPS fix, then the first
+  // assignment for the initial map view, and finally attendance history.
   const attendanceQuery = useListFrontendAttendance({ perPage: 30 })
-  const assignedQuery = useGetFrontendWorkArea()
+  const assignedQuery = useGetFrontendWorkAreas()
   const workArea = useMemo(() => {
-    const nodes = assignedQuery.data?.workArea?.areaNodes
+    const assignments = assignedQuery.data?.workAreas ?? []
+    const assignedArea = position
+      ? assignments.find(({ workArea: area }) =>
+          pointInPolygon(position, area.areaNodes.map((node) => ({ lat: node.lat, lng: node.lng })))
+        )
+      : assignments[0]
+    const nodes = assignedArea?.workArea.areaNodes
+
     if (nodes && nodes.length > 0) {
       const polygon = nodes.map((n) => ({ lat: n.lat, lng: n.lng }))
       const center = {
@@ -48,7 +57,7 @@ export function CheckInSheet() {
       return { polygon, center }
     }
     return latestWorkArea(attendanceQuery.data?.attendanceDays ?? [])
-  }, [assignedQuery.data, attendanceQuery.data])
+  }, [assignedQuery.data?.workAreas, attendanceQuery.data?.attendanceDays, position])
 
   const checkInMutation = useCheckIn()
   const checkOutMutation = useCheckOut()
@@ -72,7 +81,6 @@ export function CheckInSheet() {
     return null
   }
 
-  const position = coords ? { lat: coords.lat, lng: coords.lng } : null
   const center = position ?? workArea?.center ?? FALLBACK_CENTER
   const polygon = workArea?.polygon
 

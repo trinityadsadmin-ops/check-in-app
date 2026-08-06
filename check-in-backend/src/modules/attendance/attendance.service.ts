@@ -3,7 +3,8 @@ import { env } from '../../config/env.js'
 import { badRequest, forbidden, notFound } from '../../core/errors/http-error.js'
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { writeAuditLog, writeEventLog } from '../logs/logs.service.js'
-import { getBangkokDate, isPointInsidePolygon, type LatLngNode } from './geo.js'
+import { findActiveWorkAreaForPoint } from '../work-locations/work-location-assignment.service.js'
+import { getBangkokDate, type LatLngNode } from './geo.js'
 import type {
   AttendanceEventType,
   ConfirmAttendanceRequest,
@@ -24,14 +25,6 @@ type PhotoUploadRow = {
   status: 'PENDING' | 'COMPLETED' | 'CANCELLED'
   expires_at: string
   upload_expires_at: string
-}
-
-type EmployeeWorkAreaRow = {
-  id: string
-  user_id: string
-  work_location_id: string
-  area_nodes: LatLngNode[]
-  is_active: boolean
 }
 
 type AttendanceEventRow = {
@@ -71,6 +64,11 @@ type AttendanceDayRow = {
   created_at: string
   user?: AttendanceProfileRow | AttendanceProfileRow[] | null
   profiles?: AttendanceProfileRow | AttendanceProfileRow[] | null
+}
+
+type WorkLocationRow = {
+  id: string
+  name: string
 }
 
 const attendanceDaySelect =
@@ -157,7 +155,8 @@ async function assertUploadedPhotoExists(upload: PhotoUploadRow) {
 
 async function mapAttendanceDay(
   day: AttendanceDayRow,
-  events: AttendanceEventRow[] = []
+  events: AttendanceEventRow[] = [],
+  workLocationsById: Map<string, WorkLocationRow> = new Map()
 ) {
   // A day may contain multiple alternating CHECK_IN/CHECK_OUT cycles. Expose the
   // full ordered list, and keep `checkIn`/`checkOut` as the day's first check-in
@@ -170,6 +169,15 @@ async function mapAttendanceDay(
   )
   const checkIns = mapped.filter((event) => event.type === 'CHECK_IN')
   const checkOuts = mapped.filter((event) => event.type === 'CHECK_OUT')
+  const workLocations = Array.from(
+    new Set(
+      events
+        .map((event) => event.work_area_snapshot?.workLocationId)
+        .filter((locationId): locationId is string => Boolean(locationId))
+    )
+  )
+    .map((locationId) => workLocationsById.get(locationId))
+    .filter((location): location is WorkLocationRow => Boolean(location))
 
   return {
     id: day.id,
@@ -178,11 +186,38 @@ async function mapAttendanceDay(
     workDate: day.work_date,
     reviewStatus: day.review_status,
     reviewNote: day.review_note,
+    workLocations,
     checkIn: checkIns[0] ?? null,
     checkOut: checkOuts[checkOuts.length - 1] ?? null,
     events: mapped,
     createdAt: day.created_at
   }
+}
+
+async function getWorkLocationsById(events: AttendanceEventRow[]) {
+  const locationIds = Array.from(
+    new Set(
+      events
+        .map((event) => event.work_area_snapshot?.workLocationId)
+        .filter((locationId): locationId is string => Boolean(locationId))
+    )
+  )
+
+  if (locationIds.length === 0) {
+    return new Map<string, WorkLocationRow>()
+  }
+
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { data, error } = await supabaseAdmin
+    .from('work_locations')
+    .select('id,name')
+    .in('id', locationIds)
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  return new Map((data ?? []).map((location) => [location.id, location as WorkLocationRow]))
 }
 
 async function getAttendanceDayForDate(userId: string, workDate: string) {
@@ -229,26 +264,6 @@ async function getLastEventType(
     new Date(event.captured_at).getTime() > new Date(acc.captured_at).getTime() ? event : acc
   )
   return latest.event_type
-}
-
-async function getActiveWorkArea(userId: string) {
-  const supabaseAdmin = requireSupabaseAdmin()
-  const { data, error } = await supabaseAdmin
-    .from('employee_work_areas')
-    .select('id,user_id,work_location_id,area_nodes,is_active')
-    .eq('user_id', userId)
-    .eq('is_active', true)
-    .maybeSingle()
-
-  if (error) {
-    throw badRequest(error.message)
-  }
-
-  if (!data) {
-    throw forbidden('Active work area is required')
-  }
-
-  return data as EmployeeWorkAreaRow
 }
 
 async function getPendingUpload(userId: string, pendingUploadId: string, eventType: AttendanceEventType) {
@@ -345,20 +360,18 @@ export async function confirmAttendance(input: {
     await assertUploadedPhotoExists(upload)
   }
 
-  const workArea = await getActiveWorkArea(input.userId)
   const point = { lat: input.payload.lat, lng: input.payload.lng }
+  const workArea = await findActiveWorkAreaForPoint(input.userId, point)
 
-  if (!isPointInsidePolygon(point, workArea.area_nodes)) {
+  if (!workArea) {
     await writeEventLog({
       actorUserId: input.userId,
       eventType: 'attendance.location_rejected',
       severity: 'WARN',
       resourceType: 'employee_work_area',
-      resourceId: workArea.id,
       metadata: {
         attendanceEventType: input.eventType,
-        point,
-        workAreaId: workArea.id
+        point
       },
       c: input.c
     })
@@ -460,7 +473,13 @@ export async function confirmAttendance(input: {
   })
 
   const events = await getAttendanceEventsForDay(day.id)
-  return { attendanceDay: await mapAttendanceDay(updatedDay as AttendanceDayRow, events) }
+  return {
+    attendanceDay: await mapAttendanceDay(
+      updatedDay as AttendanceDayRow,
+      events,
+      await getWorkLocationsById(events)
+    )
+  }
 }
 
 async function getAttendanceEventsForDay(attendanceDayId: string) {
@@ -479,38 +498,56 @@ async function getAttendanceEventsForDay(attendanceDayId: string) {
 
 export async function listAttendance(query: ListAttendanceQuery) {
   const supabaseAdmin = requireSupabaseAdmin()
-  const from = (query.page - 1) * query.perPage
-  const to = from + query.perPage - 1
+  const { data: pageData, error: pageError } = await supabaseAdmin.rpc(
+    'list_attendance_day_page',
+    {
+      p_page: query.page,
+      p_per_page: query.perPage,
+      p_user_id: query.userId ?? null,
+      p_date_from: query.dateFrom ?? null,
+      p_date_to: query.dateTo ?? null,
+      p_review_status: query.reviewStatus ?? null,
+      p_work_location_id: query.workLocationId ?? null,
+      p_sort_by: query.sortBy,
+      p_sort_direction: query.sortDirection
+    }
+  )
 
-  let request = supabaseAdmin
+  if (pageError) {
+    throw badRequest(pageError.message)
+  }
+
+  const pageRows = (pageData ?? []) as Array<{
+    attendance_day_id: string
+    total_count: number | string
+  }>
+  const attendanceDayIds = pageRows.map((row) => row.attendance_day_id)
+
+  if (attendanceDayIds.length === 0) {
+    return {
+      attendanceDays: [],
+      page: query.page,
+      perPage: query.perPage,
+      total: 0
+    }
+  }
+
+  const { data, error } = await supabaseAdmin
     .from('attendance_days')
-    .select(attendanceDaySelect, { count: 'exact' })
-    .order('work_date', { ascending: false })
-    .range(from, to)
-
-  if (query.userId) {
-    request = request.eq('user_id', query.userId)
-  }
-
-  if (query.dateFrom) {
-    request = request.gte('work_date', query.dateFrom)
-  }
-
-  if (query.dateTo) {
-    request = request.lte('work_date', query.dateTo)
-  }
-
-  if (query.reviewStatus) {
-    request = request.eq('review_status', query.reviewStatus)
-  }
-
-  const { data, error, count } = await request
+    .select(attendanceDaySelect)
+    .in('id', attendanceDayIds)
 
   if (error) {
     throw badRequest(error.message)
   }
 
-  const days = (data ?? []) as AttendanceDayRow[]
+  const daysById = new Map(
+    ((data ?? []) as AttendanceDayRow[]).map((day) => [day.id, day])
+  )
+  const days = attendanceDayIds.flatMap((attendanceDayId) => {
+    const day = daysById.get(attendanceDayId)
+    return day ? [day] : []
+  })
   const eventsByDay = new Map<string, AttendanceEventRow[]>()
 
   if (days.length > 0) {
@@ -533,13 +570,23 @@ export async function listAttendance(query: ListAttendanceQuery) {
     }
   }
 
+  const workLocationsById = await getWorkLocationsById(
+    Array.from(eventsByDay.values()).flat()
+  )
+
   return {
     attendanceDays: await Promise.all(
-      days.map((day) => mapAttendanceDay(day, eventsByDay.get(day.id) ?? []))
+      days.map((day) =>
+        mapAttendanceDay(
+          day,
+          eventsByDay.get(day.id) ?? [],
+          workLocationsById
+        )
+      )
     ),
     page: query.page,
     perPage: query.perPage,
-    total: count ?? 0
+    total: Number(pageRows[0]?.total_count ?? 0)
   }
 }
 
@@ -559,10 +606,12 @@ export async function getAttendanceDay(attendanceDayId: string) {
     throw notFound('Attendance day was not found')
   }
 
+  const events = await getAttendanceEventsForDay(attendanceDayId)
   return {
     attendanceDay: await mapAttendanceDay(
       data as AttendanceDayRow,
-      await getAttendanceEventsForDay(attendanceDayId)
+      events,
+      await getWorkLocationsById(events)
     )
   }
 }
@@ -606,10 +655,12 @@ export async function reviewAttendance(input: {
     c: input.c
   })
 
+  const events = await getAttendanceEventsForDay(input.attendanceDayId)
   return {
     attendanceDay: await mapAttendanceDay(
       data as AttendanceDayRow,
-      await getAttendanceEventsForDay(input.attendanceDayId)
+      events,
+      await getWorkLocationsById(events)
     )
   }
 }

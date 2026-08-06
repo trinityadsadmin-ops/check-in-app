@@ -5,17 +5,14 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
-import type { LatLngNode } from './latLngNode';
 
 /**
  * @nullable
  */
-export type FrontendWorkAreaResponseWorkArea = {
+export type EmergencyLogWithUserAllOfUser = {
   id: string;
-  userId: string;
-  workLocationId: string;
-  areaNodes: LatLngNode[];
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  /** @nullable */
+  fullName: string | null;
+  /** @nullable */
+  employeeCode: string | null;
 } | null;

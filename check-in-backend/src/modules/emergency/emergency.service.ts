@@ -1,6 +1,10 @@
 import { badRequest, forbidden, notFound } from '../../core/errors/http-error.js'
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { writeAuditLog, writeEventLog } from '../logs/logs.service.js'
+import {
+  findActiveWorkAreaForPoint,
+  listActiveWorkAreasForUser
+} from '../work-locations/work-location-assignment.service.js'
 import type {
   CreateEmergencyRequest,
   ListEmergencyLogsQuery,
@@ -106,31 +110,18 @@ function mapEmergencyLogWithUser(row: ActiveEmergencyRow) {
   }
 }
 
-/** Resolve the caller's active work location (site). Returns null if unassigned. */
-async function getActiveWorkLocationId(userId: string) {
-  const supabaseAdmin = requireSupabaseAdmin()
-  const { data, error } = await supabaseAdmin
-    .from('employee_work_areas')
-    .select('work_location_id')
-    .eq('user_id', userId)
-    .eq('is_active', true)
-    .maybeSingle()
-
-  if (error) {
-    throw badRequest(error.message)
-  }
-
-  return (data?.work_location_id as string | null | undefined) ?? null
-}
-
 export async function createEmergencyLog(input: {
   userId: string
   payload: CreateEmergencyRequest
   c?: Context<AppEnv> | undefined
 }) {
   const supabaseAdmin = requireSupabaseAdmin()
-  // Snapshot the caller's site so alerts fan out to everyone on the same site.
-  const workLocationId = await getActiveWorkLocationId(input.userId)
+  // Snapshot the assigned site containing the emergency GPS point.
+  const workArea = await findActiveWorkAreaForPoint(input.userId, {
+    lat: input.payload.lat,
+    lng: input.payload.lng
+  })
+  const workLocationId = workArea?.work_location_id ?? null
   const { data, error } = await supabaseAdmin
     .from('emergency_logs')
     .insert({
@@ -168,13 +159,15 @@ export async function createEmergencyLog(input: {
 
 /**
  * OPEN alerts visible to a staff device: everything broadcast on the caller's
- * active site (including the caller's own). Staff with no assigned site only
+ * active sites (including the caller's own). Staff with no assigned site only
  * see their own alerts — their rows carry a null work_location_id, which can
  * never match a site filter (mirrors listSiteAreaInspections).
  */
 export async function listActiveEmergencies(userId: string) {
   const supabaseAdmin = requireSupabaseAdmin()
-  const workLocationId = await getActiveWorkLocationId(userId)
+  const workLocationIds = (await listActiveWorkAreasForUser(userId)).map(
+    (workArea) => workArea.work_location_id
+  )
 
   let request = supabaseAdmin
     .from('emergency_logs')
@@ -183,8 +176,8 @@ export async function listActiveEmergencies(userId: string) {
     .order('triggered_at', { ascending: false })
     .limit(20)
 
-  request = workLocationId
-    ? request.eq('work_location_id', workLocationId)
+  request = workLocationIds.length > 0
+    ? request.in('work_location_id', workLocationIds)
     : request.eq('user_id', userId)
 
   const { data, error } = await request

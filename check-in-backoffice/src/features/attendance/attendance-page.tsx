@@ -2,10 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
-import { CalendarDays, ExternalLink, RefreshCcw, RotateCcw } from 'lucide-react'
+import { CalendarDays, Check, ChevronsUpDown, Download, ExternalLink, RefreshCcw, RotateCcw, ArrowDown, ArrowUp, ArrowUpDown, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { DateRange } from 'react-day-picker'
 import { toast } from 'sonner'
+import * as XLSX from 'xlsx'
 import { EmptyState } from '@/components/data/empty-state'
 import { ErrorBanner } from '@/components/data/error-banner'
 import { TableSkeleton } from '@/components/data/table-skeleton'
@@ -15,6 +16,21 @@ import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from '@/components/ui/command'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious
+} from '@/components/ui/pagination'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
@@ -32,14 +48,19 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import type { AttendanceDayReviewStatus } from '@/generated/api/model'
+import type { AttendanceDayReviewStatus, ListAttendanceParams, WorkLocation } from '@/generated/api/model'
+import { UserCombobox } from '@/features/users/user-combobox'
 import { usePermissions } from '@/hooks/use-permissions'
-import { listAttendance, reviewAttendance } from '@/lib/api/backoffice'
+import { listAttendance, listWorkLocations, reviewAttendance } from '@/lib/api/backoffice'
 import { getErrorMessage } from '@/lib/api/errors'
 import { translateStatusKey, useI18n } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 type ReviewStatusFilter = '' | AttendanceDayReviewStatus
+type AttendanceSortBy = NonNullable<ListAttendanceParams['sortBy']>
+type SortDirection = NonNullable<ListAttendanceParams['sortDirection']>
+
+const attendancePerPage = 20
 
 function statusVariant(status: AttendanceDayReviewStatus) {
   if (status === 'APPROVED') {
@@ -65,6 +86,14 @@ function formatLocation(lat?: number, lng?: number) {
   return `${lat.toFixed(5)}, ${lng.toFixed(5)}`
 }
 
+function getEmployeeLabel(day: { user: { fullName: string | null; email: string | null } | null; userId: string }) {
+  return day.user?.fullName ?? day.user?.email ?? day.userId
+}
+
+function getEmployeeDescription(day: { user: { employeeCode: string | null; email: string | null } | null; userId: string }) {
+  return day.user?.employeeCode ?? day.user?.email ?? day.userId
+}
+
 export function AttendancePage() {
   const queryClient = useQueryClient()
   const { locale, t } = useI18n()
@@ -74,17 +103,42 @@ export function AttendancePage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [reviewNote, setReviewNote] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
+  const [workLocationId, setWorkLocationId] = useState('')
+  const [workLocationOpen, setWorkLocationOpen] = useState(false)
+  const [attendancePage, setAttendancePage] = useState(1)
+  const [sortBy, setSortBy] = useState<AttendanceSortBy>('workDate')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [isExporting, setIsExporting] = useState(false)
+  const workLocationsQuery = useQuery({
+    queryKey: ['work-locations'],
+    queryFn: listWorkLocations
+  })
+  const selectedWorkLocation = useMemo(
+    () =>
+      workLocationsQuery.data?.workLocations.find((location) => location.id === workLocationId) ??
+      null,
+    [workLocationId, workLocationsQuery.data?.workLocations]
+  )
+
+  const attendanceParams = useMemo<ListAttendanceParams>(
+    () => ({
+      page: attendancePage,
+      perPage: attendancePerPage,
+      sortBy,
+      sortDirection,
+      ...(reviewStatus ? { reviewStatus } : {}),
+      ...(dateFrom ? { dateFrom } : {}),
+      ...(dateTo ? { dateTo } : {}),
+      ...(employeeId ? { userId: employeeId } : {}),
+      ...(workLocationId ? { workLocationId } : {})
+    }),
+    [attendancePage, dateFrom, dateTo, employeeId, reviewStatus, sortBy, sortDirection, workLocationId]
+  )
 
   const attendanceQuery = useQuery({
-    queryKey: ['attendance', { reviewStatus, dateFrom, dateTo }],
-    queryFn: () =>
-      listAttendance({
-        page: 1,
-        perPage: 50,
-        ...(reviewStatus ? { reviewStatus } : {}),
-        ...(dateFrom ? { dateFrom } : {}),
-        ...(dateTo ? { dateTo } : {})
-      })
+    queryKey: ['attendance', attendanceParams],
+    queryFn: () => listAttendance(attendanceParams)
   })
   const reviewMutation = useMutation({
     mutationFn: (input: { attendanceDayId: string; status: AttendanceDayReviewStatus }) =>
@@ -107,6 +161,14 @@ export function AttendancePage() {
   })
 
   const attendanceDays = attendanceQuery.data?.attendanceDays ?? []
+  const totalPages = Math.max(
+    1,
+    Math.ceil((attendanceQuery.data?.total ?? 0) / attendancePerPage)
+  )
+  const rangeStart = attendanceQuery.data?.total
+    ? (attendancePage - 1) * attendancePerPage + 1
+    : 0
+  const rangeEnd = Math.min(attendancePage * attendancePerPage, attendanceQuery.data?.total ?? 0)
   const selectedDateRange = useMemo<DateRange | undefined>(() => {
     if (!dateFrom) {
       return undefined
@@ -121,6 +183,81 @@ export function AttendancePage() {
   function setDateRange(range: DateRange | undefined) {
     setDateFrom(range?.from ? format(range.from, 'yyyy-MM-dd') : '')
     setDateTo(range?.to ? format(range.to, 'yyyy-MM-dd') : '')
+    setAttendancePage(1)
+  }
+
+  function setFilter<T>(setter: (value: T) => void, value: T) {
+    setter(value)
+    setAttendancePage(1)
+  }
+
+  function toggleSort(nextSortBy: AttendanceSortBy) {
+    if (nextSortBy === sortBy) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(nextSortBy)
+      setSortDirection(nextSortBy === 'workDate' ? 'desc' : 'asc')
+    }
+    setAttendancePage(1)
+  }
+
+  function SortableHead({
+    label,
+    value,
+    className
+  }: {
+    label: string
+    value: AttendanceSortBy
+    className?: string
+  }) {
+    const Icon = sortBy !== value ? ArrowUpDown : sortDirection === 'asc' ? ArrowUp : ArrowDown
+
+    return (
+      <TableHead className={className}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8 gap-1.5 px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+          onClick={() => toggleSort(value)}
+        >
+          {label}
+          <Icon className="size-3.5" />
+        </Button>
+      </TableHead>
+    )
+  }
+
+  async function exportAttendance() {
+    setIsExporting(true)
+    try {
+      const firstPage = await listAttendance({ ...attendanceParams, page: 1, perPage: 100 })
+      const pages = [firstPage]
+      const exportPageCount = Math.ceil(firstPage.total / firstPage.perPage)
+
+      for (let page = 2; page <= exportPageCount; page += 1) {
+        pages.push(await listAttendance({ ...attendanceParams, page, perPage: 100 }))
+      }
+
+      const records = pages.flatMap((response) => response.attendanceDays).map((day) => ({
+        [t('attendance.workDate')]: day.workDate,
+        [t('common.employee')]: getEmployeeLabel(day),
+        [t('users.employeeCode')]: getEmployeeDescription(day),
+        [t('attendance.workLocation')]: day.workLocations.map((location) => location.name).join(', '),
+        [t('attendance.checkIn')]: formatTime(day.checkIn?.capturedAt, locale),
+        [t('attendance.checkOut')]: formatTime(day.checkOut?.capturedAt, locale),
+        [t('common.status')]: t(translateStatusKey(day.reviewStatus))
+      }))
+      const worksheet = XLSX.utils.json_to_sheet(records)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, t('attendance.title'))
+      XLSX.writeFile(workbook, `attendance-${format(new Date(), 'yyyy-MM-dd')}.xlsx`)
+      toast.success(t('attendance.exported'))
+    } catch (error) {
+      toast.error(t('toast.actionFailed'), { description: getErrorMessage(error) })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   function formatDateRangeLabel() {
@@ -150,15 +287,28 @@ export function AttendancePage() {
       <CardHeader>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <CardTitle>{t('attendance.reviewTitle')}</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => attendanceQuery.refetch()}
-            disabled={attendanceQuery.isFetching}
-          >
-            <RefreshCcw className="size-4" />
-            {t('common.refresh')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void exportAttendance()}
+              disabled={
+                isExporting || attendanceQuery.isFetching || attendanceQuery.data?.total === 0
+              }
+            >
+              <Download className="size-4" />
+              {isExporting ? t('attendance.exporting') : t('attendance.export')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => attendanceQuery.refetch()}
+              disabled={attendanceQuery.isFetching}
+            >
+              <RefreshCcw className="size-4" />
+              {t('common.refresh')}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -168,7 +318,10 @@ export function AttendancePage() {
             <Select
               value={reviewStatus || 'ALL'}
               onValueChange={(value) =>
-                setReviewStatus(value === 'ALL' ? '' : (value as ReviewStatusFilter))
+                setFilter(
+                  setReviewStatus,
+                  value === 'ALL' ? '' : (value as ReviewStatusFilter)
+                )
               }
             >
               <SelectTrigger id="review-status">
@@ -233,6 +386,82 @@ export function AttendancePage() {
               onChange={(event) => setReviewNote(event.target.value)}
             />
           </div>
+          <div className="grid gap-2">
+            <Label>{t('attendance.employeeFilter')}</Label>
+            <div className="flex w-72 gap-2">
+              <UserCombobox
+                value={employeeId}
+                onValueChange={(value) => setFilter(setEmployeeId, value)}
+                placeholder={t('users.selectUser')}
+              />
+              {employeeId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('common.reset')}
+                  onClick={() => setFilter(setEmployeeId, '')}
+                >
+                  <X className="size-4" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>{t('attendance.workLocationFilter')}</Label>
+            <div className="flex w-72 gap-2">
+              <Popover open={workLocationOpen} onOpenChange={setWorkLocationOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={workLocationOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    <span className="truncate">
+                      {selectedWorkLocation?.name ?? t('attendance.selectWorkLocation')}
+                    </span>
+                    <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder={t('attendance.searchWorkLocation')} />
+                    <CommandList>
+                      <CommandEmpty>{t('attendance.noWorkLocation')}</CommandEmpty>
+                      <CommandGroup>
+                        {(workLocationsQuery.data?.workLocations ?? []).map((location: WorkLocation) => (
+                          <CommandItem
+                            key={location.id}
+                            value={location.name}
+                            onSelect={() => {
+                              setFilter(setWorkLocationId, location.id)
+                              setWorkLocationOpen(false)
+                            }}
+                          >
+                            <Check className={cn('size-4', workLocationId === location.id ? 'opacity-100' : 'opacity-0')} />
+                            <span className="truncate">{location.name}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {workLocationId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('common.reset')}
+                  onClick={() => setFilter(setWorkLocationId, '')}
+                >
+                  <X className="size-4" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         {attendanceQuery.isLoading ? <TableSkeleton /> : null}
@@ -244,11 +473,12 @@ export function AttendancePage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t('attendance.workDate')}</TableHead>
-                  <TableHead>{t('common.employee')}</TableHead>
-                  <TableHead>{t('attendance.checkIn')}</TableHead>
-                  <TableHead>{t('attendance.checkOut')}</TableHead>
-                  <TableHead>{t('common.status')}</TableHead>
+                  <SortableHead label={t('attendance.workDate')} value="workDate" />
+                  <SortableHead label={t('common.employee')} value="employee" />
+                  <SortableHead label={t('attendance.workLocation')} value="workLocation" />
+                  <SortableHead label={t('attendance.checkIn')} value="checkIn" />
+                  <SortableHead label={t('attendance.checkOut')} value="checkOut" />
+                  <SortableHead label={t('common.status')} value="reviewStatus" />
                   <TableHead className="w-48 text-right">{t('attendance.review')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -258,11 +488,22 @@ export function AttendancePage() {
                     <TableCell className="font-medium">{day.workDate}</TableCell>
                     <TableCell>
                       <div className="font-medium">
-                        {day.user?.fullName ?? day.user?.email ?? day.userId}
+                        {getEmployeeLabel(day)}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {day.user?.employeeCode ?? day.user?.email ?? day.userId}
+                        {getEmployeeDescription(day)}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {day.workLocations.length > 0 ? (
+                        <div className="grid gap-1">
+                          {day.workLocations.map((location) => (
+                            <span key={location.id}>{location.name}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                     <TableCell>
                       <div>{formatTime(day.checkIn?.capturedAt, locale)}</div>
@@ -354,6 +595,56 @@ export function AttendancePage() {
           ) : (
             <EmptyState label={t('attendance.empty')} />
           )
+        ) : null}
+        {attendanceQuery.data && attendanceDays.length > 0 ? (
+          <div className="flex flex-col gap-3 border-t pt-4 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm text-muted-foreground">
+              {rangeStart}-{rangeEnd} / {attendanceQuery.data.total}
+            </div>
+            <Pagination className="mx-0 w-auto justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    aria-disabled={attendancePage <= 1 || attendanceQuery.isFetching}
+                    className={
+                      attendancePage <= 1 || attendanceQuery.isFetching
+                        ? 'pointer-events-none opacity-50'
+                        : undefined
+                    }
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setAttendancePage((current) => Math.max(1, current - 1))
+                    }}
+                  >
+                    {t('common.previous')}
+                  </PaginationPrevious>
+                </PaginationItem>
+                <PaginationItem>
+                  <span className="block min-w-24 text-center text-sm text-muted-foreground">
+                    {t('attendance.page')} {attendancePage} / {totalPages}
+                  </span>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    aria-disabled={attendancePage >= totalPages || attendanceQuery.isFetching}
+                    className={
+                      attendancePage >= totalPages || attendanceQuery.isFetching
+                        ? 'pointer-events-none opacity-50'
+                        : undefined
+                    }
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setAttendancePage((current) => Math.min(totalPages, current + 1))
+                    }}
+                  >
+                    {t('common.next')}
+                  </PaginationNext>
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         ) : null}
       </CardContent>
     </Card>

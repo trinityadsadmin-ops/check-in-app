@@ -245,16 +245,15 @@ export const EmployeeWorkAreaSchema = z
 export const SetEmployeeWorkAreaRequestSchema = z
   .object({
     workLocationId: z.string().uuid(),
-    isActive: z.boolean().default(true),
-    allowReassignment: z.boolean().default(false)
+    isActive: z.boolean().default(true)
   })
   .openapi('SetEmployeeWorkAreaRequest')
 
-export const EmployeeWorkAreaResponseSchema = z
+export const EmployeeWorkAreasResponseSchema = z
   .object({
-    workArea: EmployeeWorkAreaSchema.nullable()
+    workAreas: z.array(EmployeeWorkAreaSchema)
   })
-  .openapi('EmployeeWorkAreaResponse')
+  .openapi('EmployeeWorkAreasResponse')
 
 export const LogsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),

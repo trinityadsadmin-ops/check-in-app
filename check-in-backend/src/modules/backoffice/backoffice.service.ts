@@ -2,8 +2,7 @@ import {
   badRequest,
   employeeCodeAlreadyExists,
   forbidden,
-  notFound,
-  userAlreadyAssignedToWorkLocation
+  notFound
 } from '../../core/errors/http-error.js'
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { getActiveDeviceBinding, resetDeviceBinding } from '../auth/device.service.js'
@@ -755,20 +754,20 @@ export async function updateWorkLocation(input: {
   return { workLocation: mapWorkLocation(data as WorkLocationRow) }
 }
 
-export async function getUserWorkArea(userId: string) {
+export async function getUserWorkAreas(userId: string) {
   const supabaseAdmin = requireSupabaseAdmin()
   const { data, error } = await supabaseAdmin
     .from('employee_work_areas')
     .select('id,user_id,work_location_id,area_nodes,is_active,created_at,updated_at')
     .eq('user_id', userId)
     .eq('is_active', true)
-    .maybeSingle()
+    .order('created_at', { ascending: true })
 
   if (error) {
     throw badRequest(error.message)
   }
 
-  return { workArea: data ? mapWorkArea(data as EmployeeWorkAreaRow) : null }
+  return { workAreas: ((data ?? []) as EmployeeWorkAreaRow[]).map(mapWorkArea) }
 }
 
 export async function listWorkLocationUsers(workLocationId: string) {
@@ -815,13 +814,16 @@ export async function setUserWorkArea(input: {
     throw notFound('Active work location was not found')
   }
 
-  const existing = await getUserWorkArea(input.userId)
-  const previousWorkLocationId = existing.workArea?.workLocationId
-  const isReassignment =
-    previousWorkLocationId !== undefined && previousWorkLocationId !== input.payload.workLocationId
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from('employee_work_areas')
+    .select('id,user_id,work_location_id,area_nodes,is_active,created_at,updated_at')
+    .eq('user_id', input.userId)
+    .eq('work_location_id', input.payload.workLocationId)
+    .eq('is_active', true)
+    .maybeSingle()
 
-  if (isReassignment && !input.payload.allowReassignment) {
-    throw userAlreadyAssignedToWorkLocation(previousWorkLocationId)
+  if (existingError) {
+    throw badRequest(existingError.message)
   }
 
   const values = {
@@ -832,11 +834,11 @@ export async function setUserWorkArea(input: {
     created_by: input.actorUserId
   }
 
-  const request = existing.workArea
+  const request = existing
     ? supabaseAdmin
         .from('employee_work_areas')
         .update(values)
-        .eq('id', existing.workArea.id)
+        .eq('id', (existing as EmployeeWorkAreaRow).id)
     : supabaseAdmin.from('employee_work_areas').insert(values)
 
   const { data, error } = await request
@@ -849,22 +851,17 @@ export async function setUserWorkArea(input: {
 
   await writeAuditLog({
     actorUserId: input.actorUserId,
-    action: isReassignment
-      ? 'work_area.reassign'
-      : existing.workArea
-        ? 'work_area.update'
-        : 'work_area.create',
+    action: existing ? 'work_area.update' : 'work_area.create',
     resourceType: 'employee_work_area',
     resourceId: (data as EmployeeWorkAreaRow).id,
     metadata: {
       userId: input.userId,
-      workLocationId: input.payload.workLocationId,
-      ...(isReassignment ? { previousWorkLocationId } : {})
+      workLocationId: input.payload.workLocationId
     },
     c: input.c
   })
 
-  return { workArea: mapWorkArea(data as EmployeeWorkAreaRow) }
+  return { workAreas: [mapWorkArea(data as EmployeeWorkAreaRow)] }
 }
 
 export async function unassignWorkLocationUser(input: {

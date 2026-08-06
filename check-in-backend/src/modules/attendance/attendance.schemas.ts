@@ -66,6 +66,12 @@ export const AttendanceDaySchema = z
     workDate: z.string(),
     reviewStatus: AttendanceReviewStatusSchema,
     reviewNote: z.string().nullable(),
+    workLocations: z.array(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string()
+      })
+    ),
     checkIn: AttendanceEventSchema.nullable(),
     checkOut: AttendanceEventSchema.nullable(),
     /** All check-in/check-out events for the day, oldest first. A day may
@@ -87,7 +93,12 @@ export const ListAttendanceQuerySchema = z.object({
   userId: z.string().uuid().optional(),
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
-  reviewStatus: AttendanceReviewStatusSchema.optional()
+  reviewStatus: AttendanceReviewStatusSchema.optional(),
+  workLocationId: z.string().uuid().optional(),
+  sortBy: z
+    .enum(['workDate', 'employee', 'checkIn', 'checkOut', 'workLocation', 'reviewStatus'])
+    .default('workDate'),
+  sortDirection: z.enum(['asc', 'desc']).default('desc')
 })
 
 export const AttendanceDayIdParamSchema = z.object({

@@ -5,7 +5,7 @@ import type { Route } from 'next'
 import { useRouter } from 'next/navigation'
 import {
   useGetFrontendProfile,
-  useGetFrontendWorkArea,
+  useGetFrontendWorkAreas,
   useListFrontendAttendance
 } from '@/generated/api/frontend/frontend'
 import { useAuth } from '@/lib/auth/auth-provider'
@@ -38,7 +38,7 @@ export function HomeScreen() {
 
   const profileQuery = useGetFrontendProfile()
   const attendanceQuery = useListFrontendAttendance({ perPage: 30 })
-  const workAreaQuery = useGetFrontendWorkArea()
+  const workAreasQuery = useGetFrontendWorkAreas()
 
   const profileUser = profileQuery.data?.user ?? user
   const days = attendanceQuery.data?.attendanceDays ?? []
@@ -55,11 +55,11 @@ export function HomeScreen() {
   const empRole = profileUser?.role?.name ?? t.tab_home
   const initials = initialsOf(profileUser?.fullName)
 
-  // Site label: the assigned work location's name (staff work-area endpoint),
+  // Site label: the first assigned work location's name (staff work-areas endpoint),
   // falling back to the most recent work-area id from history, else a placeholder.
   const today = findTodayDay(days)
   const siteShort =
-    workAreaQuery.data?.workLocation?.name ??
+    workAreasQuery.data?.workAreas[0]?.workLocation.name ??
     today?.checkIn?.workAreaSnapshot?.workLocationId ??
     t.site_label
 

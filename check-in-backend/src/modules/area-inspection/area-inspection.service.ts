@@ -9,6 +9,10 @@ import {
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { getBangkokDate } from '../attendance/geo.js'
 import { writeAuditLog, writeEventLog } from '../logs/logs.service.js'
+import {
+  findActiveWorkAreaForPoint,
+  listActiveWorkAreasForUser
+} from '../work-locations/work-location-assignment.service.js'
 import type {
   CreateAreaInspectionRequest,
   CreateAreaInspectionUploadUrlRequest,
@@ -133,23 +137,6 @@ async function mapInspection(row: AreaInspectionRow) {
   }
 }
 
-/** Resolve the caller's active work location (site). Returns null if unassigned. */
-async function getActiveWorkLocationId(userId: string) {
-  const supabaseAdmin = requireSupabaseAdmin()
-  const { data, error } = await supabaseAdmin
-    .from('employee_work_areas')
-    .select('work_location_id')
-    .eq('user_id', userId)
-    .eq('is_active', true)
-    .maybeSingle()
-
-  if (error) {
-    throw badRequest(error.message)
-  }
-
-  return (data?.work_location_id as string | null | undefined) ?? null
-}
-
 async function getPendingUpload(userId: string, pendingUploadId: string) {
   const supabaseAdmin = requireSupabaseAdmin()
   const { data, error } = await supabaseAdmin
@@ -243,7 +230,17 @@ export async function createAreaInspection(input: {
   const upload = await getPendingUpload(input.userId, input.payload.pendingUploadId)
   await assertUploadedPhotoExists(upload)
 
-  const workLocationId = await getActiveWorkLocationId(input.userId)
+  const workArea =
+    input.payload.lat !== null &&
+    input.payload.lat !== undefined &&
+    input.payload.lng !== null &&
+    input.payload.lng !== undefined
+      ? await findActiveWorkAreaForPoint(input.userId, {
+          lat: input.payload.lat,
+          lng: input.payload.lng
+        })
+      : null
+  const workLocationId = workArea?.work_location_id ?? null
 
   const insert = await supabaseAdmin
     .from('area_inspections')
@@ -282,7 +279,9 @@ export async function createAreaInspection(input: {
   return { areaInspection: await mapInspection(insert.data as AreaInspectionRow) }
 }
 
-export async function listAreaInspections(query: ListAreaInspectionsQuery) {
+export async function listAreaInspections(
+  query: ListAreaInspectionsQuery & { workLocationIds?: string[] }
+) {
   const supabaseAdmin = requireSupabaseAdmin()
   const from = (query.page - 1) * query.perPage
   const to = from + query.perPage - 1
@@ -293,7 +292,9 @@ export async function listAreaInspections(query: ListAreaInspectionsQuery) {
     .order('captured_at', { ascending: false })
     .range(from, to)
 
-  if (query.workLocationId) {
+  if (query.workLocationIds?.length) {
+    request = request.in('work_location_id', query.workLocationIds)
+  } else if (query.workLocationId) {
     request = request.eq('work_location_id', query.workLocationId)
   }
 
@@ -327,7 +328,7 @@ export async function listAreaInspections(query: ListAreaInspectionsQuery) {
 
 /**
  * Site-scoped list for staff: returns every area inspection captured at the
- * caller's active work location, so everyone on the same site sees them all.
+ * caller's active work locations, so everyone on an assigned site sees them all.
  *
  * When the caller has no active work location, their captures are stored with a
  * null work_location_id (which can never match a site filter), so we fall back
@@ -338,9 +339,11 @@ export async function listSiteAreaInspections(input: {
   userId: string
   query: ListSiteAreaInspectionsQuery
 }) {
-  const workLocationId = await getActiveWorkLocationId(input.userId)
+  const workLocationIds = (await listActiveWorkAreasForUser(input.userId)).map(
+    (workArea) => workArea.work_location_id
+  )
 
-  if (!workLocationId) {
+  if (workLocationIds.length === 0) {
     return listAreaInspections({
       page: input.query.page,
       perPage: input.query.perPage,
@@ -353,7 +356,7 @@ export async function listSiteAreaInspections(input: {
   return listAreaInspections({
     page: input.query.page,
     perPage: input.query.perPage,
-    workLocationId,
+    workLocationIds,
     dateFrom: input.query.dateFrom,
     dateTo: input.query.dateTo
   })

@@ -7,15 +7,12 @@
  */
 import type { LatLngNode } from './latLngNode';
 
-/**
- * @nullable
- */
-export type FrontendWorkAreaResponseWorkArea = {
+export type FrontendWorkAreaAssignmentWorkLocation = {
   id: string;
-  userId: string;
-  workLocationId: string;
+  name: string;
+  /** @nullable */
+  description: string | null;
   areaNodes: LatLngNode[];
   isActive: boolean;
   createdAt: string;
-  updatedAt: string;
-} | null;
+};

@@ -65,7 +65,7 @@ import { hasEveryPermission, hasPermission, permissions as permissionKeys } from
 import {
   createUser,
   getUserEffectivePermissions,
-  getUserWorkArea,
+  getUserWorkAreas,
   listPermissions,
   listRoles,
   listUsers,
@@ -175,8 +175,8 @@ export function UsersTable() {
     enabled: Boolean(selectedUserId) && canReadPermissions
   })
   const userWorkAreaQuery = useQuery({
-    queryKey: ['user-work-area', viewedWorkAreaUser?.id],
-    queryFn: () => getUserWorkArea(viewedWorkAreaUser?.id ?? ''),
+    queryKey: ['user-work-areas', viewedWorkAreaUser?.id],
+    queryFn: () => getUserWorkAreas(viewedWorkAreaUser?.id ?? ''),
     enabled: Boolean(viewedWorkAreaUser) && canReadWorkAreas
   })
   const workLocationsQuery = useQuery({
@@ -271,17 +271,17 @@ export function UsersTable() {
     () => new Map(permissions.map((permission) => [permission.key, permission])),
     [permissions]
   )
-  const viewedWorkLocation = useMemo(() => {
-    const workLocationId = userWorkAreaQuery.data?.workArea?.workLocationId
+  const viewedWorkAreas = useMemo(
+    () =>
+      (userWorkAreaQuery.data?.workAreas ?? []).flatMap((workArea) => {
+        const workLocation = workLocationsQuery.data?.workLocations.find(
+          (location) => location.id === workArea.workLocationId
+        )
 
-    if (!workLocationId) {
-      return null
-    }
-
-    return (
-      workLocationsQuery.data?.workLocations.find((location) => location.id === workLocationId) ?? null
-    )
-  }, [userWorkAreaQuery.data?.workArea?.workLocationId, workLocationsQuery.data?.workLocations])
+        return workLocation ? [{ workArea, workLocation }] : []
+      }),
+    [userWorkAreaQuery.data?.workAreas, workLocationsQuery.data?.workLocations]
+  )
   const availablePermissions = useMemo(
     () => permissions.filter((permission) => !grantedPermissionKeys.includes(permission.key)),
     [grantedPermissionKeys, permissions]
@@ -873,25 +873,25 @@ export function UsersTable() {
           {workLocationsQuery.isError ? <ErrorBanner error={workLocationsQuery.error} /> : null}
 
           {userWorkAreaQuery.data && workLocationsQuery.data ? (
-            userWorkAreaQuery.data.workArea && viewedWorkLocation ? (
-              <>
-                <div className="grid gap-1 rounded-md border p-4">
-                  <div className="text-sm text-muted-foreground">
-                    {t('users.assignedWorkLocation')}
-                  </div>
-                  <div className="font-medium">{viewedWorkLocation.name}</div>
-                  {viewedWorkLocation.description ? (
-                    <div className="text-sm text-muted-foreground">
-                      {viewedWorkLocation.description}
+            viewedWorkAreas.length > 0 ? (
+              <div className="grid gap-5">
+                {viewedWorkAreas.map(({ workArea, workLocation }) => (
+                  <div key={workArea.id} className="grid gap-3 rounded-md border p-4">
+                    <div className="grid gap-1">
+                      <div className="text-sm text-muted-foreground">
+                        {t('users.assignedWorkLocation')}
+                      </div>
+                      <div className="font-medium">{workLocation.name}</div>
+                      {workLocation.description ? (
+                        <div className="text-sm text-muted-foreground">
+                          {workLocation.description}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-                <MapAreaEditor
-                  value={userWorkAreaQuery.data.workArea.areaNodes}
-                  onChange={() => undefined}
-                  disabled
-                />
-              </>
+                    <MapAreaEditor value={workArea.areaNodes} onChange={() => undefined} disabled />
+                  </div>
+                ))}
+              </div>
             ) : (
               <EmptyState label={t('workAreas.emptyUserArea')} />
             )

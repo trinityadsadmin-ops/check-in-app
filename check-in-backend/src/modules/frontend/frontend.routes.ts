@@ -13,13 +13,13 @@ import {
   CreateCheckInResponseSchema,
   CreateCheckInRequestSchema,
   FrontendProfileResponseSchema,
-  FrontendWorkAreaResponseSchema,
+  FrontendWorkAreasResponseSchema,
   ListFrontendAttendanceQuerySchema,
   ListFrontendAttendanceResponseSchema,
   ListFrontendPayslipsQuerySchema,
   ListFrontendPayslipsResponseSchema
 } from './frontend.schemas.js'
-import { getOwnWorkArea, listOwnAttendance, listOwnPayslips } from './frontend.service.js'
+import { getOwnWorkAreas, listOwnAttendance, listOwnPayslips } from './frontend.service.js'
 
 export const frontendRoutes = new OpenAPIHono<AppEnv>()
 
@@ -219,17 +219,17 @@ frontendRoutes.openapi(listAreaInspectionsRoute, async (c) => {
   )
 })
 
-const workAreaRoute = createRoute({
+const workAreasRoute = createRoute({
   method: 'get',
-  path: '/work-area',
-  operationId: 'getFrontendWorkArea',
+  path: '/work-areas',
+  operationId: 'getFrontendWorkAreas',
   tags: ['Frontend'],
   responses: {
     200: {
-      description: "Current user's assigned work area (geofence) + work location",
+      description: "Current user's assigned work areas (geofences) + work locations",
       content: {
         'application/json': {
-          schema: FrontendWorkAreaResponseSchema
+          schema: FrontendWorkAreasResponseSchema
         }
       }
     },
@@ -244,6 +244,6 @@ const workAreaRoute = createRoute({
   }
 })
 
-frontendRoutes.openapi(workAreaRoute, async (c) => {
-  return c.json(await getOwnWorkArea(c.get('currentUser').id), 200)
+frontendRoutes.openapi(workAreasRoute, async (c) => {
+  return c.json(await getOwnWorkAreas(c.get('currentUser').id), 200)
 })

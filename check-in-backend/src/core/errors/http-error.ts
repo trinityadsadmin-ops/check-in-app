@@ -5,7 +5,6 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'EMPLOYEE_CODE_ALREADY_EXISTS'
-  | 'USER_ALREADY_ASSIGNED_TO_WORK_LOCATION'
   | 'AREA_INSPECTION_REVIEW_NOTE_REQUIRED'
   | 'RATE_LIMITED'
   | 'INTERNAL_SERVER_ERROR'
@@ -39,14 +38,6 @@ export const conflict = (message: string, details?: unknown) =>
 
 export const employeeCodeAlreadyExists = () =>
   new AppError(409, 'EMPLOYEE_CODE_ALREADY_EXISTS', 'Employee code already exists')
-
-export const userAlreadyAssignedToWorkLocation = (workLocationId: string) =>
-  new AppError(
-    409,
-    'USER_ALREADY_ASSIGNED_TO_WORK_LOCATION',
-    'User is already assigned to another work location',
-    { workLocationId }
-  )
 
 export const areaInspectionReviewNoteRequired = () =>
   new AppError(

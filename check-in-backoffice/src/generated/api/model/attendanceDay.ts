@@ -7,6 +7,7 @@
  */
 import type { AttendanceDayUser } from './attendanceDayUser';
 import type { AttendanceDayReviewStatus } from './attendanceDayReviewStatus';
+import type { AttendanceDayWorkLocationsItem } from './attendanceDayWorkLocationsItem';
 import type { AttendanceEvent } from './attendanceEvent';
 
 export interface AttendanceDay {
@@ -18,6 +19,7 @@ export interface AttendanceDay {
   reviewStatus: AttendanceDayReviewStatus;
   /** @nullable */
   reviewNote: string | null;
+  workLocations: AttendanceDayWorkLocationsItem[];
   checkIn: AttendanceEvent;
   checkOut: AttendanceEvent;
   events: AttendanceEvent[];

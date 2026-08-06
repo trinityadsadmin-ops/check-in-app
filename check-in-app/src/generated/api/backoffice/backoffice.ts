@@ -36,7 +36,7 @@ import type {
   DeleteSalaryRecordResponse,
   DeleteSalaryUploadResponse,
   EmergencyLogResponse,
-  EmployeeWorkAreaResponse,
+  EmployeeWorkAreasResponse,
   ErrorResponse,
   GetUserDeviceResponse,
   ImportSalaryRequest,
@@ -1262,17 +1262,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
       return useMutation(mutationOptions , queryClient);
     }
-    export const getGetUserWorkAreaUrl = (userId: string,) => {
+    export const getGetUserWorkAreasUrl = (userId: string,) => {
 
 
 
 
-  return `/api/backoffice/users/${userId}/work-area`
+  return `/api/backoffice/users/${userId}/work-areas`
 }
 
-export const getUserWorkArea = async (userId: string, options?: RequestInit): Promise<EmployeeWorkAreaResponse> => {
+export const getUserWorkAreas = async (userId: string, options?: RequestInit): Promise<EmployeeWorkAreasResponse> => {
 
-  return customFetch<EmployeeWorkAreaResponse>(getGetUserWorkAreaUrl(userId),
+  return customFetch<EmployeeWorkAreasResponse>(getGetUserWorkAreasUrl(userId),
   {
     ...options,
     method: 'GET'
@@ -1283,64 +1283,64 @@ export const getUserWorkArea = async (userId: string, options?: RequestInit): Pr
 
 
 
-export const getGetUserWorkAreaQueryKey = (userId?: string,) => {
-    return [`/api/backoffice/users/${userId}/work-area`] as const;
+export const getGetUserWorkAreasQueryKey = (userId?: string,) => {
+    return [`/api/backoffice/users/${userId}/work-areas`] as const;
     }
 
 
-export const getGetUserWorkAreaQueryOptions = <TData = Awaited<ReturnType<typeof getUserWorkArea>>, TError = ErrorResponse | ErrorResponse>(userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserWorkArea>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetUserWorkAreasQueryOptions = <TData = Awaited<ReturnType<typeof getUserWorkAreas>>, TError = ErrorResponse | ErrorResponse>(userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserWorkAreas>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetUserWorkAreaQueryKey(userId);
+  const queryKey =  queryOptions?.queryKey ?? getGetUserWorkAreasQueryKey(userId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserWorkArea>>> = ({ signal }) => getUserWorkArea(userId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserWorkAreas>>> = ({ signal }) => getUserWorkAreas(userId, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: !!(userId),  staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserWorkArea>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: !!(userId),  staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserWorkAreas>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
-export type GetUserWorkAreaQueryResult = NonNullable<Awaited<ReturnType<typeof getUserWorkArea>>>
-export type GetUserWorkAreaQueryError = ErrorResponse | ErrorResponse
+export type GetUserWorkAreasQueryResult = NonNullable<Awaited<ReturnType<typeof getUserWorkAreas>>>
+export type GetUserWorkAreasQueryError = ErrorResponse | ErrorResponse
 
 
-export function useGetUserWorkArea<TData = Awaited<ReturnType<typeof getUserWorkArea>>, TError = ErrorResponse | ErrorResponse>(
- userId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserWorkArea>>, TError, TData>> & Pick<
+export function useGetUserWorkAreas<TData = Awaited<ReturnType<typeof getUserWorkAreas>>, TError = ErrorResponse | ErrorResponse>(
+ userId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserWorkAreas>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getUserWorkArea>>,
+          Awaited<ReturnType<typeof getUserWorkAreas>>,
           TError,
-          Awaited<ReturnType<typeof getUserWorkArea>>
+          Awaited<ReturnType<typeof getUserWorkAreas>>
         > , 'initialData'
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetUserWorkArea<TData = Awaited<ReturnType<typeof getUserWorkArea>>, TError = ErrorResponse | ErrorResponse>(
- userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserWorkArea>>, TError, TData>> & Pick<
+export function useGetUserWorkAreas<TData = Awaited<ReturnType<typeof getUserWorkAreas>>, TError = ErrorResponse | ErrorResponse>(
+ userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserWorkAreas>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getUserWorkArea>>,
+          Awaited<ReturnType<typeof getUserWorkAreas>>,
           TError,
-          Awaited<ReturnType<typeof getUserWorkArea>>
+          Awaited<ReturnType<typeof getUserWorkAreas>>
         > , 'initialData'
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetUserWorkArea<TData = Awaited<ReturnType<typeof getUserWorkArea>>, TError = ErrorResponse | ErrorResponse>(
- userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserWorkArea>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export function useGetUserWorkAreas<TData = Awaited<ReturnType<typeof getUserWorkAreas>>, TError = ErrorResponse | ErrorResponse>(
+ userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserWorkAreas>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useGetUserWorkArea<TData = Awaited<ReturnType<typeof getUserWorkArea>>, TError = ErrorResponse | ErrorResponse>(
- userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserWorkArea>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export function useGetUserWorkAreas<TData = Awaited<ReturnType<typeof getUserWorkAreas>>, TError = ErrorResponse | ErrorResponse>(
+ userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserWorkAreas>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetUserWorkAreaQueryOptions(userId,options)
+  const queryOptions = getGetUserWorkAreasQueryOptions(userId,options)
 
   const query = useQuery(queryOptions , queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1360,9 +1360,9 @@ export const getSetUserWorkAreaUrl = (userId: string,) => {
 }
 
 export const setUserWorkArea = async (userId: string,
-    setEmployeeWorkAreaRequest: SetEmployeeWorkAreaRequest, options?: RequestInit): Promise<EmployeeWorkAreaResponse> => {
+    setEmployeeWorkAreaRequest: SetEmployeeWorkAreaRequest, options?: RequestInit): Promise<EmployeeWorkAreasResponse> => {
 
-  return customFetch<EmployeeWorkAreaResponse>(getSetUserWorkAreaUrl(userId),
+  return customFetch<EmployeeWorkAreasResponse>(getSetUserWorkAreaUrl(userId),
   {
     ...options,
     method: 'PUT',

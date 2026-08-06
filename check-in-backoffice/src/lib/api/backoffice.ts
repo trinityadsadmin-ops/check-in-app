@@ -11,7 +11,7 @@ import {
   getGetEmergencyLogUrl,
   getGetUserEffectivePermissionsUrl,
   getGetUserPermissionOverridesUrl,
-  getGetUserWorkAreaUrl,
+  getGetUserWorkAreasUrl,
   getImportSalaryUploadUrl,
   getListAttendanceUrl,
   getListAuditLogsUrl,
@@ -48,7 +48,7 @@ import type {
   DeleteSalaryRecordResponse,
   DeleteSalaryUploadResponse,
   EmergencyLogResponse,
-  EmployeeWorkAreaResponse,
+  EmployeeWorkAreasResponse,
   ImportSalaryRequest,
   ImportSalaryResponse,
   ListAuditLogsParams,
@@ -163,12 +163,12 @@ export function unassignWorkLocationUser(workLocationId: string, userId: string)
   )
 }
 
-export function getUserWorkArea(userId: string) {
-  return fetchJson<EmployeeWorkAreaResponse>(getGetUserWorkAreaUrl(userId))
+export function getUserWorkAreas(userId: string) {
+  return fetchJson<EmployeeWorkAreasResponse>(getGetUserWorkAreasUrl(userId))
 }
 
 export function setUserWorkArea(userId: string, payload: SetEmployeeWorkAreaRequest) {
-  return fetchJson<EmployeeWorkAreaResponse>(getSetUserWorkAreaUrl(userId), {
+  return fetchJson<EmployeeWorkAreasResponse>(getSetUserWorkAreaUrl(userId), {
     method: 'PUT',
     body: payload
   })

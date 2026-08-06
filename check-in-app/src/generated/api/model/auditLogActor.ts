@@ -5,8 +5,14 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
-import type { EmployeeWorkArea } from './employeeWorkArea';
 
-export interface EmployeeWorkAreaResponse {
-  workArea: EmployeeWorkArea;
-}
+/**
+ * @nullable
+ */
+export type AuditLogActor = {
+  id: string;
+  /** @nullable */
+  fullName: string | null;
+  /** @nullable */
+  employeeCode: string | null;
+} | null;

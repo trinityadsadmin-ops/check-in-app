@@ -7,10 +7,7 @@
  */
 import type { LatLngNode } from './latLngNode';
 
-/**
- * @nullable
- */
-export type EmployeeWorkArea = {
+export interface EmployeeWorkArea {
   id: string;
   userId: string;
   workLocationId: string;
@@ -18,4 +15,4 @@ export type EmployeeWorkArea = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-} | null;
+}

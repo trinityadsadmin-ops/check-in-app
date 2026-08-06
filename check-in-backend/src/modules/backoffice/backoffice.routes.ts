@@ -68,7 +68,7 @@ import {
   BackofficeUserResponseSchema,
   CreateBackofficeUserRequestSchema,
   CreateWorkLocationRequestSchema,
-  EmployeeWorkAreaResponseSchema,
+  EmployeeWorkAreasResponseSchema,
   GetUserDeviceResponseSchema,
   ListAuditLogsResponseSchema,
   ListEventLogsResponseSchema,
@@ -99,7 +99,7 @@ import {
   getUserEffectivePermissions,
   getUserPermissionOverrides,
   getUserDevice,
-  getUserWorkArea,
+  getUserWorkAreas,
   listAuditLogs,
   listEventLogs,
   listPermissions,
@@ -660,20 +660,20 @@ backofficeRoutes.openapi(unassignWorkLocationUserRoute, async (c) => {
   )
 })
 
-const getUserWorkAreaRoute = createRoute({
+const getUserWorkAreasRoute = createRoute({
   method: 'get',
-  path: '/users/{userId}/work-area',
-  operationId: 'getUserWorkArea',
+  path: '/users/{userId}/work-areas',
+  operationId: 'getUserWorkAreas',
   tags: ['Backoffice'],
   request: {
     params: UuidParamSchema
   },
   responses: {
     200: {
-      description: 'Current active employee work area',
+      description: 'Current active employee work areas',
       content: {
         'application/json': {
-          schema: EmployeeWorkAreaResponseSchema
+          schema: EmployeeWorkAreasResponseSchema
         }
       }
     },
@@ -681,10 +681,10 @@ const getUserWorkAreaRoute = createRoute({
   }
 })
 
-backofficeRoutes.openapi(getUserWorkAreaRoute, async (c) => {
+backofficeRoutes.openapi(getUserWorkAreasRoute, async (c) => {
   ensurePermission(c, permissions.workAreasRead)
   const { userId } = c.req.valid('param')
-  return c.json(await getUserWorkArea(userId), 200)
+  return c.json(await getUserWorkAreas(userId), 200)
 })
 
 const setUserWorkAreaRoute = createRoute({
@@ -708,7 +708,7 @@ const setUserWorkAreaRoute = createRoute({
       description: 'Employee work area set',
       content: {
         'application/json': {
-          schema: EmployeeWorkAreaResponseSchema
+          schema: EmployeeWorkAreasResponseSchema
         }
       }
     },

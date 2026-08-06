@@ -431,6 +431,25 @@
             "type": "string",
             "nullable": true
           },
+          "workLocations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ]
+            }
+          },
           "checkIn": {
             "$ref": "#/components/schemas/AttendanceEvent"
           },
@@ -455,6 +474,7 @@
           "workDate",
           "reviewStatus",
           "reviewNote",
+          "workLocations",
           "checkIn",
           "checkOut",
           "events",
@@ -800,12 +820,25 @@
           "createdAt"
         ]
       },
-      "FrontendWorkAreaResponse": {
+      "FrontendWorkAreasResponse": {
+        "type": "object",
+        "properties": {
+          "workAreas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FrontendWorkAreaAssignment"
+            }
+          }
+        },
+        "required": [
+          "workAreas"
+        ]
+      },
+      "FrontendWorkAreaAssignment": {
         "type": "object",
         "properties": {
           "workArea": {
             "type": "object",
-            "nullable": true,
             "properties": {
               "id": {
                 "type": "string",
@@ -849,7 +882,6 @@
           },
           "workLocation": {
             "type": "object",
-            "nullable": true,
             "properties": {
               "id": {
                 "type": "string",
@@ -1866,20 +1898,22 @@
           "unassigned"
         ]
       },
-      "EmployeeWorkAreaResponse": {
+      "EmployeeWorkAreasResponse": {
         "type": "object",
         "properties": {
-          "workArea": {
-            "$ref": "#/components/schemas/EmployeeWorkArea"
+          "workAreas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeWorkArea"
+            }
           }
         },
         "required": [
-          "workArea"
+          "workAreas"
         ]
       },
       "EmployeeWorkArea": {
         "type": "object",
-        "nullable": true,
         "properties": {
           "id": {
             "type": "string",
@@ -2019,7 +2053,7 @@
           "emergencyLogs": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/EmergencyLog"
+              "$ref": "#/components/schemas/EmergencyLogWithUser"
             }
           },
           "page": {
@@ -2037,6 +2071,44 @@
           "page",
           "perPage",
           "total"
+        ]
+      },
+      "EmergencyLogWithUser": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EmergencyLog"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "user": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "employeeCode": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "fullName",
+                  "employeeCode"
+                ]
+              }
+            },
+            "required": [
+              "user"
+            ]
+          }
         ]
       },
       "UpdateEmergencyLogRequest": {
@@ -2316,6 +2388,29 @@
             "nullable": true,
             "format": "uuid"
           },
+          "actor": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "fullName": {
+                "type": "string",
+                "nullable": true
+              },
+              "employeeCode": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "fullName",
+              "employeeCode"
+            ]
+          },
           "action": {
             "type": "string"
           },
@@ -2345,6 +2440,7 @@
         "required": [
           "id",
           "actorUserId",
+          "actor",
           "action",
           "resourceType",
           "resourceId",
@@ -2922,19 +3018,19 @@
         }
       }
     },
-    "/api/frontend/work-area": {
+    "/api/frontend/work-areas": {
       "get": {
-        "operationId": "getFrontendWorkArea",
+        "operationId": "getFrontendWorkAreas",
         "tags": [
           "Frontend"
         ],
         "responses": {
           "200": {
-            "description": "Current user's assigned work area (geofence) + work location",
+            "description": "Current user's assigned work areas (geofences) + work locations",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FrontendWorkAreaResponse"
+                  "$ref": "#/components/schemas/FrontendWorkAreasResponse"
                 }
               }
             }
@@ -4189,9 +4285,9 @@
         }
       }
     },
-    "/api/backoffice/users/{userId}/work-area": {
+    "/api/backoffice/users/{userId}/work-areas": {
       "get": {
-        "operationId": "getUserWorkArea",
+        "operationId": "getUserWorkAreas",
         "tags": [
           "Backoffice"
         ],
@@ -4208,11 +4304,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Current active employee work area",
+            "description": "Current active employee work areas",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EmployeeWorkAreaResponse"
+                  "$ref": "#/components/schemas/EmployeeWorkAreasResponse"
                 }
               }
             }
@@ -4238,7 +4334,9 @@
             }
           }
         }
-      },
+      }
+    },
+    "/api/backoffice/users/{userId}/work-area": {
       "put": {
         "operationId": "setUserWorkArea",
         "tags": [
@@ -4271,7 +4369,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EmployeeWorkAreaResponse"
+                  "$ref": "#/components/schemas/EmployeeWorkAreasResponse"
                 }
               }
             }
@@ -4366,6 +4464,45 @@
             },
             "required": false,
             "name": "reviewStatus",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "workLocationId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "workDate",
+                "employee",
+                "checkIn",
+                "checkOut",
+                "workLocation",
+                "reviewStatus"
+              ],
+              "default": "workDate"
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            },
+            "required": false,
+            "name": "sortDirection",
             "in": "query"
           }
         ],

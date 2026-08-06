@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ListAttendanceReviewStatus } from './listAttendanceReviewStatus';
+import type { ListAttendanceSortBy } from './listAttendanceSortBy';
+import type { ListAttendanceSortDirection } from './listAttendanceSortDirection';
 
 export type ListAttendanceParams = {
 /**
@@ -22,4 +24,7 @@ userId?: string;
 dateFrom?: string;
 dateTo?: string;
 reviewStatus?: ListAttendanceReviewStatus;
+workLocationId?: string;
+sortBy?: ListAttendanceSortBy;
+sortDirection?: ListAttendanceSortDirection;
 };
