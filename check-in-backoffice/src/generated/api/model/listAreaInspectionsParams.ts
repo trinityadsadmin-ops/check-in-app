@@ -5,6 +5,8 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
+import type { ListAreaInspectionsSortBy } from './listAreaInspectionsSortBy';
+import type { ListAreaInspectionsSortDirection } from './listAreaInspectionsSortDirection';
 
 export type ListAreaInspectionsParams = {
 /**
@@ -21,4 +23,6 @@ workLocationId?: string;
 userId?: string;
 dateFrom?: string;
 dateTo?: string;
+sortBy?: ListAreaInspectionsSortBy;
+sortDirection?: ListAreaInspectionsSortDirection;
 };

@@ -283,46 +283,62 @@ export async function listAreaInspections(
   query: ListAreaInspectionsQuery & { workLocationIds?: string[] }
 ) {
   const supabaseAdmin = requireSupabaseAdmin()
-  const from = (query.page - 1) * query.perPage
-  const to = from + query.perPage - 1
+  const { data: pageData, error: pageError } = await supabaseAdmin.rpc(
+    'list_area_inspection_page',
+    {
+      p_page: query.page,
+      p_per_page: query.perPage,
+      p_work_location_id: query.workLocationId ?? null,
+      p_work_location_ids: query.workLocationIds ?? null,
+      p_user_id: query.userId ?? null,
+      p_date_from: query.dateFrom ?? null,
+      p_date_to: query.dateTo ?? null,
+      p_sort_by: query.sortBy,
+      p_sort_direction: query.sortDirection
+    }
+  )
 
-  let request = supabaseAdmin
+  if (pageError) {
+    throw badRequest(pageError.message)
+  }
+
+  const pageRows = (pageData ?? []) as Array<{
+    area_inspection_id: string
+    total_count: number | string
+  }>
+  const inspectionIds = pageRows.map((row) => row.area_inspection_id)
+
+  if (inspectionIds.length === 0) {
+    return {
+      areaInspections: [],
+      page: query.page,
+      perPage: query.perPage,
+      total: 0
+    }
+  }
+
+  const { data, error } = await supabaseAdmin
     .from('area_inspections')
-    .select(inspectionSelect, { count: 'exact' })
-    .order('captured_at', { ascending: false })
-    .range(from, to)
-
-  if (query.workLocationIds?.length) {
-    request = request.in('work_location_id', query.workLocationIds)
-  } else if (query.workLocationId) {
-    request = request.eq('work_location_id', query.workLocationId)
-  }
-
-  if (query.userId) {
-    request = request.eq('user_id', query.userId)
-  }
-
-  if (query.dateFrom) {
-    request = request.gte('captured_at', `${query.dateFrom}T00:00:00.000Z`)
-  }
-
-  if (query.dateTo) {
-    request = request.lte('captured_at', `${query.dateTo}T23:59:59.999Z`)
-  }
-
-  const { data, error, count } = await request
+    .select(inspectionSelect)
+    .in('id', inspectionIds)
 
   if (error) {
     throw badRequest(error.message)
   }
 
-  const rows = (data ?? []) as AreaInspectionRow[]
+  const rowsById = new Map(
+    ((data ?? []) as AreaInspectionRow[]).map((row) => [row.id, row])
+  )
+  const rows = inspectionIds.flatMap((inspectionId) => {
+    const row = rowsById.get(inspectionId)
+    return row ? [row] : []
+  })
 
   return {
     areaInspections: await Promise.all(rows.map((row) => mapInspection(row))),
     page: query.page,
     perPage: query.perPage,
-    total: count ?? 0
+    total: Number(pageRows[0]?.total_count ?? 0)
   }
 }
 
@@ -349,7 +365,9 @@ export async function listSiteAreaInspections(input: {
       perPage: input.query.perPage,
       userId: input.userId,
       dateFrom: input.query.dateFrom,
-      dateTo: input.query.dateTo
+      dateTo: input.query.dateTo,
+      sortBy: 'capturedAt',
+      sortDirection: 'desc'
     })
   }
 
@@ -358,7 +376,9 @@ export async function listSiteAreaInspections(input: {
     perPage: input.query.perPage,
     workLocationIds,
     dateFrom: input.query.dateFrom,
-    dateTo: input.query.dateTo
+    dateTo: input.query.dateTo,
+    sortBy: 'capturedAt',
+    sortDirection: 'desc'
   })
 }
 

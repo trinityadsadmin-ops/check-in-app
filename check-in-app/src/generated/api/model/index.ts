@@ -85,6 +85,8 @@ export * from './latLngNode';
 export * from './listActiveEmergenciesResponse';
 export * from './listAreaInspectionsParams';
 export * from './listAreaInspectionsResponse';
+export * from './listAreaInspectionsSortBy';
+export * from './listAreaInspectionsSortDirection';
 export * from './listAttendanceParams';
 export * from './listAttendanceResponse';
 export * from './listAttendanceReviewStatus';

@@ -4716,6 +4716,36 @@
             "required": false,
             "name": "dateTo",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "employee",
+                "workLocation",
+                "location",
+                "capturedAt",
+                "notes",
+                "reviewStatus"
+              ],
+              "default": "capturedAt"
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            },
+            "required": false,
+            "name": "sortDirection",
+            "in": "query"
           }
         ],
         "responses": {

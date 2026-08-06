@@ -2,10 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
-import { ClipboardCheck, CalendarDays, ExternalLink, RefreshCcw, RotateCcw, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Check, ChevronsUpDown, ClipboardCheck, Download, ExternalLink, RefreshCcw, RotateCcw, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { DateRange } from 'react-day-picker'
 import { toast } from 'sonner'
+import * as XLSX from 'xlsx'
 import { EmptyState } from '@/components/data/empty-state'
 import { ErrorBanner } from '@/components/data/error-banner'
 import { TableSkeleton } from '@/components/data/table-skeleton'
@@ -13,7 +14,22 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from '@/components/ui/command'
 import { Label } from '@/components/ui/label'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious
+} from '@/components/ui/pagination'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
@@ -41,16 +57,23 @@ import {
 } from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Textarea } from '@/components/ui/textarea'
-import type { AreaInspection, AreaInspectionReviewStatus } from '@/generated/api/model'
+import type { AreaInspection, AreaInspectionReviewStatus, ListAreaInspectionsParams, WorkLocation } from '@/generated/api/model'
+import { UserCombobox } from '@/features/users/user-combobox'
 import { usePermissions } from '@/hooks/use-permissions'
 import {
   deleteAreaInspection,
   listAreaInspections,
+  listWorkLocations,
   reviewAreaInspection
 } from '@/lib/api/backoffice'
 import { getErrorMessage } from '@/lib/api/errors'
 import { translateStatusKey, useI18n } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
+
+type AreaInspectionSortBy = NonNullable<ListAreaInspectionsParams['sortBy']>
+type SortDirection = NonNullable<ListAreaInspectionsParams['sortDirection']>
+
+const inspectionsPerPage = 20
 
 function formatTime(value: string | null | undefined, locale: string) {
   return value ? new Date(value).toLocaleString(locale) : '-'
@@ -88,6 +111,13 @@ export function AreaInspectionsPage() {
   const [pendingReview, setPendingReview] = useState<AreaInspection | null>(null)
   const [reviewStatus, setReviewStatus] = useState<'APPROVED' | 'REJECTED'>('APPROVED')
   const [reviewNote, setReviewNote] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
+  const [workLocationId, setWorkLocationId] = useState('')
+  const [workLocationOpen, setWorkLocationOpen] = useState(false)
+  const [inspectionPage, setInspectionPage] = useState(1)
+  const [sortBy, setSortBy] = useState<AreaInspectionSortBy>('capturedAt')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [isExporting, setIsExporting] = useState(false)
   const resolveErrorCode = (code: string) => {
     const key = `errors.${code}`
     const message = t(key)
@@ -95,15 +125,32 @@ export function AreaInspectionsPage() {
     return message === key ? undefined : message
   }
 
+  const workLocationsQuery = useQuery({
+    queryKey: ['work-locations'],
+    queryFn: listWorkLocations
+  })
+  const selectedWorkLocation = useMemo(
+    () =>
+      workLocationsQuery.data?.workLocations.find((location) => location.id === workLocationId) ??
+      null,
+    [workLocationId, workLocationsQuery.data?.workLocations]
+  )
+  const inspectionParams = useMemo<ListAreaInspectionsParams>(
+    () => ({
+      page: inspectionPage,
+      perPage: inspectionsPerPage,
+      sortBy,
+      sortDirection,
+      ...(dateFrom ? { dateFrom } : {}),
+      ...(dateTo ? { dateTo } : {}),
+      ...(employeeId ? { userId: employeeId } : {}),
+      ...(workLocationId ? { workLocationId } : {})
+    }),
+    [dateFrom, dateTo, employeeId, inspectionPage, sortBy, sortDirection, workLocationId]
+  )
   const inspectionsQuery = useQuery({
-    queryKey: ['areaInspections', { dateFrom, dateTo }],
-    queryFn: () =>
-      listAreaInspections({
-        page: 1,
-        perPage: 100,
-        ...(dateFrom ? { dateFrom } : {}),
-        ...(dateTo ? { dateTo } : {})
-      })
+    queryKey: ['areaInspections', inspectionParams],
+    queryFn: () => listAreaInspections(inspectionParams)
   })
 
   const deleteMutation = useMutation({
@@ -143,6 +190,14 @@ export function AreaInspectionsPage() {
   })
 
   const inspections = inspectionsQuery.data?.areaInspections ?? []
+  const totalPages = Math.max(
+    1,
+    Math.ceil((inspectionsQuery.data?.total ?? 0) / inspectionsPerPage)
+  )
+  const rangeStart = inspectionsQuery.data?.total
+    ? (inspectionPage - 1) * inspectionsPerPage + 1
+    : 0
+  const rangeEnd = Math.min(inspectionPage * inspectionsPerPage, inspectionsQuery.data?.total ?? 0)
   const selectedDateRange = useMemo<DateRange | undefined>(() => {
     if (!dateFrom) {
       return undefined
@@ -157,6 +212,81 @@ export function AreaInspectionsPage() {
   function setDateRange(range: DateRange | undefined) {
     setDateFrom(range?.from ? format(range.from, 'yyyy-MM-dd') : '')
     setDateTo(range?.to ? format(range.to, 'yyyy-MM-dd') : '')
+    setInspectionPage(1)
+  }
+
+  function setFilter<T>(setter: (value: T) => void, value: T) {
+    setter(value)
+    setInspectionPage(1)
+  }
+
+  function toggleSort(nextSortBy: AreaInspectionSortBy) {
+    if (nextSortBy === sortBy) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(nextSortBy)
+      setSortDirection(nextSortBy === 'capturedAt' ? 'desc' : 'asc')
+    }
+    setInspectionPage(1)
+  }
+
+  function SortableHead({
+    label,
+    value,
+    className
+  }: {
+    label: string
+    value: AreaInspectionSortBy
+    className?: string
+  }) {
+    const Icon = sortBy !== value ? ArrowUpDown : sortDirection === 'asc' ? ArrowUp : ArrowDown
+
+    return (
+      <TableHead className={className}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8 gap-1.5 px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+          onClick={() => toggleSort(value)}
+        >
+          {label}
+          <Icon className="size-3.5" />
+        </Button>
+      </TableHead>
+    )
+  }
+
+  async function exportInspections() {
+    setIsExporting(true)
+    try {
+      const firstPage = await listAreaInspections({ ...inspectionParams, page: 1, perPage: 100 })
+      const pages = [firstPage]
+      const exportPageCount = Math.ceil(firstPage.total / firstPage.perPage)
+
+      for (let page = 2; page <= exportPageCount; page += 1) {
+        pages.push(await listAreaInspections({ ...inspectionParams, page, perPage: 100 }))
+      }
+
+      const records = pages.flatMap((response) => response.areaInspections).map((inspection) => ({
+        [t('common.employee')]: inspection.user?.fullName ?? inspection.user?.email ?? '-',
+        [t('users.employeeCode')]: inspection.user?.employeeCode ?? inspection.user?.email ?? '',
+        [t('areaInspections.site')]: inspection.workLocationName ?? '-',
+        [t('common.location')]: formatLocation(inspection.lat, inspection.lng),
+        [t('areaInspections.capturedAt')]: formatTime(inspection.capturedAt, locale),
+        [t('areaInspections.notes')]: inspection.notes ?? '',
+        [t('areaInspections.reviewStatus')]: t(translateStatusKey(inspection.reviewStatus))
+      }))
+      const worksheet = XLSX.utils.json_to_sheet(records)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, t('areaInspections.title'))
+      XLSX.writeFile(workbook, `area-inspections-${format(new Date(), 'yyyy-MM-dd')}.xlsx`)
+      toast.success(t('areaInspections.exported'))
+    } catch (error) {
+      toast.error(t('toast.actionFailed'), { description: getErrorMessage(error, resolveErrorCode) })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   function formatDateRangeLabel() {
@@ -192,15 +322,28 @@ export function AreaInspectionsPage() {
       <CardHeader>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <CardTitle>{t('areaInspections.listTitle')}</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => inspectionsQuery.refetch()}
-            disabled={inspectionsQuery.isFetching}
-          >
-            <RefreshCcw className="size-4" />
-            {t('common.refresh')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void exportInspections()}
+              disabled={
+                isExporting || inspectionsQuery.isFetching || inspectionsQuery.data?.total === 0
+              }
+            >
+              <Download className="size-4" />
+              {isExporting ? t('areaInspections.exporting') : t('areaInspections.export')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => inspectionsQuery.refetch()}
+              disabled={inspectionsQuery.isFetching}
+            >
+              <RefreshCcw className="size-4" />
+              {t('common.refresh')}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -246,6 +389,82 @@ export function AreaInspectionsPage() {
               <TooltipContent>{t('common.reset')}</TooltipContent>
             </Tooltip>
           ) : null}
+          <div className="grid gap-2">
+            <Label>{t('areaInspections.employeeFilter')}</Label>
+            <div className="flex w-72 gap-2">
+              <UserCombobox
+                value={employeeId}
+                onValueChange={(value) => setFilter(setEmployeeId, value)}
+                placeholder={t('users.selectUser')}
+              />
+              {employeeId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('common.reset')}
+                  onClick={() => setFilter(setEmployeeId, '')}
+                >
+                  <X className="size-4" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>{t('areaInspections.workLocationFilter')}</Label>
+            <div className="flex w-72 gap-2">
+              <Popover open={workLocationOpen} onOpenChange={setWorkLocationOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={workLocationOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    <span className="truncate">
+                      {selectedWorkLocation?.name ?? t('areaInspections.selectWorkLocation')}
+                    </span>
+                    <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder={t('areaInspections.searchWorkLocation')} />
+                    <CommandList>
+                      <CommandEmpty>{t('areaInspections.noWorkLocation')}</CommandEmpty>
+                      <CommandGroup>
+                        {(workLocationsQuery.data?.workLocations ?? []).map((location: WorkLocation) => (
+                          <CommandItem
+                            key={location.id}
+                            value={location.name}
+                            onSelect={() => {
+                              setFilter(setWorkLocationId, location.id)
+                              setWorkLocationOpen(false)
+                            }}
+                          >
+                            <Check className={cn('size-4', workLocationId === location.id ? 'opacity-100' : 'opacity-0')} />
+                            <span className="truncate">{location.name}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {workLocationId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('common.reset')}
+                  onClick={() => setFilter(setWorkLocationId, '')}
+                >
+                  <X className="size-4" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         {inspectionsQuery.isLoading ? <TableSkeleton /> : null}
@@ -257,12 +476,12 @@ export function AreaInspectionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('common.photo')}</TableHead>
-                  <TableHead>{t('common.employee')}</TableHead>
-                  <TableHead>{t('areaInspections.site')}</TableHead>
-                  <TableHead>{t('common.location')}</TableHead>
-                  <TableHead>{t('areaInspections.capturedAt')}</TableHead>
-                  <TableHead>{t('areaInspections.notes')}</TableHead>
-                  <TableHead>{t('areaInspections.reviewStatus')}</TableHead>
+                  <SortableHead label={t('common.employee')} value="employee" />
+                  <SortableHead label={t('areaInspections.site')} value="workLocation" />
+                  <SortableHead label={t('common.location')} value="location" />
+                  <SortableHead label={t('areaInspections.capturedAt')} value="capturedAt" />
+                  <SortableHead label={t('areaInspections.notes')} value="notes" />
+                  <SortableHead label={t('areaInspections.reviewStatus')} value="reviewStatus" />
                   {canReview || canDelete ? (
                     <TableHead className="w-44 text-right">{t('common.actions')}</TableHead>
                   ) : null}
@@ -360,6 +579,56 @@ export function AreaInspectionsPage() {
           ) : (
             <EmptyState label={t('areaInspections.empty')} />
           )
+        ) : null}
+        {inspectionsQuery.data && inspections.length > 0 ? (
+          <div className="flex flex-col gap-3 border-t pt-4 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm text-muted-foreground">
+              {rangeStart}-{rangeEnd} / {inspectionsQuery.data.total}
+            </div>
+            <Pagination className="mx-0 w-auto justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    aria-disabled={inspectionPage <= 1 || inspectionsQuery.isFetching}
+                    className={
+                      inspectionPage <= 1 || inspectionsQuery.isFetching
+                        ? 'pointer-events-none opacity-50'
+                        : undefined
+                    }
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setInspectionPage((current) => Math.max(1, current - 1))
+                    }}
+                  >
+                    {t('common.previous')}
+                  </PaginationPrevious>
+                </PaginationItem>
+                <PaginationItem>
+                  <span className="block min-w-24 text-center text-sm text-muted-foreground">
+                    {t('areaInspections.page')} {inspectionPage} / {totalPages}
+                  </span>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    aria-disabled={inspectionPage >= totalPages || inspectionsQuery.isFetching}
+                    className={
+                      inspectionPage >= totalPages || inspectionsQuery.isFetching
+                        ? 'pointer-events-none opacity-50'
+                        : undefined
+                    }
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setInspectionPage((current) => Math.min(totalPages, current + 1))
+                    }}
+                  >
+                    {t('common.next')}
+                  </PaginationNext>
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         ) : null}
       </CardContent>
 

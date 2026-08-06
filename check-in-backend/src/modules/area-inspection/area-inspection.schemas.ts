@@ -85,7 +85,11 @@ export const ListAreaInspectionsQuerySchema = z.object({
   workLocationId: z.string().uuid().optional(),
   userId: z.string().uuid().optional(),
   dateFrom: z.string().date().optional(),
-  dateTo: z.string().date().optional()
+  dateTo: z.string().date().optional(),
+  sortBy: z
+    .enum(['employee', 'workLocation', 'location', 'capturedAt', 'notes', 'reviewStatus'])
+    .default('capturedAt'),
+  sortDirection: z.enum(['asc', 'desc']).default('desc')
 })
 
 /** Staff (frontend) query — always scoped to the caller's own site. */
