@@ -30,7 +30,7 @@ function createRetentionCleanupRoute(method: 'get' | 'post') {
     tags: ['Internal'],
     responses: {
       200: {
-        description: 'Attendance retention cleanup result',
+        description: 'Attendance and area inspection retention cleanup result',
         content: {
           'application/json': {
             schema: RetentionCleanupResponseSchema

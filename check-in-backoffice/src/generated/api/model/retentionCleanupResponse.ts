@@ -11,4 +11,7 @@ export interface RetentionCleanupResponse {
   expiredPhotoUploads: number;
   expiredAttendanceEvents: number;
   expiredAttendanceDays: number;
+  deletedAreaInspectionPhotoObjects: number;
+  expiredAreaInspectionUploads: number;
+  expiredAreaInspections: number;
 }

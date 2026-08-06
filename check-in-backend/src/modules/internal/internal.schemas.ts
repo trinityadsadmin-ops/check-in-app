@@ -5,6 +5,9 @@ export const RetentionCleanupResponseSchema = z
     deletedPhotoObjects: z.number(),
     expiredPhotoUploads: z.number(),
     expiredAttendanceEvents: z.number(),
-    expiredAttendanceDays: z.number()
+    expiredAttendanceDays: z.number(),
+    deletedAreaInspectionPhotoObjects: z.number(),
+    expiredAreaInspectionUploads: z.number(),
+    expiredAreaInspections: z.number()
   })
   .openapi('RetentionCleanupResponse')

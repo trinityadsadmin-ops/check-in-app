@@ -2538,13 +2538,25 @@
           },
           "expiredAttendanceDays": {
             "type": "number"
+          },
+          "deletedAreaInspectionPhotoObjects": {
+            "type": "number"
+          },
+          "expiredAreaInspectionUploads": {
+            "type": "number"
+          },
+          "expiredAreaInspections": {
+            "type": "number"
           }
         },
         "required": [
           "deletedPhotoObjects",
           "expiredPhotoUploads",
           "expiredAttendanceEvents",
-          "expiredAttendanceDays"
+          "expiredAttendanceDays",
+          "deletedAreaInspectionPhotoObjects",
+          "expiredAreaInspectionUploads",
+          "expiredAreaInspections"
         ]
       }
     },
@@ -5588,7 +5600,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Attendance retention cleanup result",
+            "description": "Attendance and area inspection retention cleanup result",
             "content": {
               "application/json": {
                 "schema": {
@@ -5616,7 +5628,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Attendance retention cleanup result",
+            "description": "Attendance and area inspection retention cleanup result",
             "content": {
               "application/json": {
                 "schema": {

@@ -278,6 +278,8 @@ Vercel detects the Hono app from `src/index.ts`, which exports the default Hono 
 
 Vercel invokes cron jobs with `GET` and sends `Authorization: Bearer $CRON_SECRET` when `CRON_SECRET` is configured.
 
+The cleanup removes expired attendance and area-inspection rows, their upload records, and the associated private Supabase Storage photos. Both retention windows are 90 days from creation.
+
 ## Docker
 
 Build from the repository root:

@@ -55,7 +55,7 @@ Do not create a root Vercel project for the repository root. The repository root
 
 When you push to GitHub, Vercel will create deployments for all connected projects. The backend project receives the API URL, and both frontend projects must point `NEXT_PUBLIC_API_BASE_URL` to that backend URL. Add both frontend production URLs to the backend `CORS_ORIGINS`.
 
-The backend `check-in-backend/vercel.json` includes a daily retention cleanup cron at `0 20 * * *` UTC, which is 03:00 Asia/Bangkok.
+The backend `check-in-backend/vercel.json` includes a daily retention cleanup cron at `0 20 * * *` UTC, which is 03:00 Asia/Bangkok. It removes expired attendance and area-inspection records together with their private Supabase Storage photos after 90 days.
 
 Set `CRON_SECRET` in the backend Vercel project so Vercel can call `/api/internal/retention/cleanup` securely. Manual calls may also use `INTERNAL_API_SECRET`.
 
