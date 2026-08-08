@@ -19,7 +19,7 @@ export function SosButton() {
       className="absolute flex flex-col items-center justify-center"
       style={{
         right: 16,
-        bottom: 104,
+        bottom: 'calc(120px + env(safe-area-inset-bottom, 0px))',
         zIndex: 79,
         width: 56,
         height: 56,
