@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { LoaderCircle, Lock, Mail, ShieldCheck, ShieldX, Smartphone } from 'lucide-react'
+import { LoaderCircle, Lock, Mail, ShieldX, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { ApiError } from '@/lib/api/fetch-client'
 import { isDeviceBlockedError, useAuth } from '@/lib/auth/auth-provider'
@@ -70,23 +70,23 @@ export function LoginScreen() {
         background: 'var(--trinity-bg)'
       }}
     >
+      <img
+        src="/logo/trinity-logo.png"
+        alt="Trinity Marketing Services"
+        style={{ width: '172px', height: 'auto', alignSelf: 'center' }}
+      />
+
+      <div style={{ marginTop: '26px', fontSize: '27px', fontWeight: 600, textAlign: 'center' }}>
+        {t.login_title}
+      </div>
       <div
         style={{
-          width: '54px',
-          height: '54px',
-          borderRadius: 'var(--trinity-radius)',
-          background: 'var(--trinity-primary)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 8px 20px -6px rgba(0,71,171,.5)'
+          marginTop: '6px',
+          fontSize: '14px',
+          color: 'var(--trinity-mfg)',
+          textAlign: 'center'
         }}
       >
-        <ShieldCheck size={30} color="#fff" />
-      </div>
-
-      <div style={{ marginTop: '22px', fontSize: '27px', fontWeight: 600 }}>{t.login_title}</div>
-      <div style={{ marginTop: '6px', fontSize: '14px', color: 'var(--trinity-mfg)' }}>
         {t.login_sub}
       </div>
 
