@@ -132,7 +132,7 @@ export function AppShell({
           />
           <div
             className="absolute left-0 right-0 flex flex-col items-center gap-3"
-            style={{ bottom: 108 }}
+            style={{ bottom: 'calc(108px + env(safe-area-inset-bottom, 0px))' }}
           >
             {fabItems.map((item) => {
               const active = pathname === item.href
