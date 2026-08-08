@@ -5,6 +5,7 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'EMPLOYEE_CODE_ALREADY_EXISTS'
+  | 'EMAIL_ALREADY_EXISTS'
   | 'AREA_INSPECTION_REVIEW_NOTE_REQUIRED'
   | 'RATE_LIMITED'
   | 'INTERNAL_SERVER_ERROR'
@@ -38,6 +39,9 @@ export const conflict = (message: string, details?: unknown) =>
 
 export const employeeCodeAlreadyExists = () =>
   new AppError(409, 'EMPLOYEE_CODE_ALREADY_EXISTS', 'Employee code already exists')
+
+export const emailAlreadyExists = () =>
+  new AppError(409, 'EMAIL_ALREADY_EXISTS', 'Email already exists')
 
 export const areaInspectionReviewNoteRequired = () =>
   new AppError(

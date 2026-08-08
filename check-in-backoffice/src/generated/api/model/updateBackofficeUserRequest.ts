@@ -7,6 +7,9 @@
  */
 
 export interface UpdateBackofficeUserRequest {
+  email?: string;
+  /** @minLength 8 */
+  password?: string;
   /**
    * @minLength 1
    * @maxLength 120

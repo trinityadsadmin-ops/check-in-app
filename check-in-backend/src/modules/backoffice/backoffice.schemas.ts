@@ -61,6 +61,8 @@ export const CreateBackofficeUserRequestSchema = z
 
 export const UpdateBackofficeUserRequestSchema = z
   .object({
+    email: z.string().email().optional(),
+    password: z.string().min(8).optional(),
     fullName: z.string().min(1).max(120).nullable().optional(),
     employeeCode: z.string().min(1).max(80).nullable().optional(),
     roleId: z.string().uuid().optional(),

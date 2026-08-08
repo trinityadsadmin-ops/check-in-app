@@ -1,7 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MapPinned, Plus, RotateCcw, Save, Search, Trash2 } from 'lucide-react'
+import { MapPinned, Pencil, Plus, RotateCcw, Save, Search, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -12,6 +12,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import {
   Command,
   CommandEmpty,
@@ -113,6 +121,11 @@ export function UsersTable() {
   const [grantedPermissionKeys, setGrantedPermissionKeys] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState<UsersTab>('list')
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<BackofficeUser | null>(null)
+  const [editFullName, setEditFullName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPassword, setEditPassword] = useState('')
+  const [editPasswordConfirmation, setEditPasswordConfirmation] = useState('')
   const [userPage, setUserPage] = useState(1)
   const [usersPerPage, setUsersPerPage] = useState(20)
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
@@ -216,6 +229,30 @@ export function UsersTable() {
     onSuccess: (_response, input) => {
       queryClient.invalidateQueries({ queryKey: ['backoffice-users'] })
       queryClient.invalidateQueries({ queryKey: ['user-effective-permissions', input.userId] })
+      toast.success(t('users.toastUpdated'))
+    },
+    onError: (error) => showActionError(t('toast.actionFailed'), error, resolveErrorCode)
+  })
+  const editMutation = useMutation({
+    mutationFn: () => {
+      if (!editingUser) {
+        throw new Error('No user selected for editing')
+      }
+
+      return updateUser(editingUser.id, {
+        fullName: editFullName.trim(),
+        email: editEmail.trim(),
+        ...(editPassword ? { password: editPassword } : {})
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['backoffice-users'] })
+      if (editingUser) {
+        queryClient.invalidateQueries({ queryKey: ['user-effective-permissions', editingUser.id] })
+      }
+      setEditingUser(null)
+      setEditPassword('')
+      setEditPasswordConfirmation('')
       toast.success(t('users.toastUpdated'))
     },
     onError: (error) => showActionError(t('toast.actionFailed'), error, resolveErrorCode)
@@ -363,6 +400,15 @@ export function UsersTable() {
     )
   }
 
+  function openEditUser(user: BackofficeUser) {
+    setEditingUser(user)
+    setEditFullName(user.fullName ?? '')
+    setEditEmail(user.email ?? '')
+    setEditPassword('')
+    setEditPasswordConfirmation('')
+    editMutation.reset()
+  }
+
   if (profileQuery.data && availableTabs.length === 0) {
     return <EmptyState label={t('common.noAccess')} />
   }
@@ -438,7 +484,7 @@ export function UsersTable() {
                     <TableHead>{t('common.role')}</TableHead>
                     <TableHead>{t('common.status')}</TableHead>
                     <TableHead>{t('common.created')}</TableHead>
-                    <TableHead className="w-80 text-right">{t('common.actions')}</TableHead>
+                    <TableHead className="w-96 text-right">{t('common.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -500,6 +546,18 @@ export function UsersTable() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {canUpdateUsers ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={editMutation.isPending}
+                                onClick={() => openEditUser(user)}
+                              >
+                                <Pencil className="size-4" />
+                                {t('users.edit')}
+                              </Button>
+                            ) : null}
                             {canReadWorkAreas ? (
                               <Button
                                 type="button"
@@ -906,6 +964,111 @@ export function UsersTable() {
         </SheetFooter>
       </SheetContent>
     </Sheet>
+    <Dialog
+      open={Boolean(editingUser)}
+      onOpenChange={(open) => {
+        if (!open && !editMutation.isPending) {
+          setEditingUser(null)
+          setEditPassword('')
+          setEditPasswordConfirmation('')
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('users.editTitle')}</DialogTitle>
+          <DialogDescription>{t('users.editDescription')}</DialogDescription>
+        </DialogHeader>
+        <form
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            editMutation.mutate()
+          }}
+        >
+          <div className="grid gap-2">
+            <Label htmlFor="edit-user-full-name">{t('users.fullName')}</Label>
+            <Input
+              id="edit-user-full-name"
+              value={editFullName}
+              onChange={(event) => setEditFullName(event.target.value)}
+              required
+              maxLength={120}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-user-email">{t('auth.email')}</Label>
+            <Input
+              id="edit-user-email"
+              type="email"
+              value={editEmail}
+              onChange={(event) => setEditEmail(event.target.value)}
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-user-password">{t('users.newPassword')}</Label>
+            <Input
+              id="edit-user-password"
+              type="password"
+              value={editPassword}
+              onChange={(event) => setEditPassword(event.target.value)}
+              minLength={8}
+              placeholder={t('users.leavePasswordBlank')}
+            />
+            <p className="text-sm text-muted-foreground">{t('users.leavePasswordBlank')}</p>
+          </div>
+          {editPassword ? (
+            <div className="grid gap-2">
+              <Label htmlFor="edit-user-password-confirmation">{t('users.confirmNewPassword')}</Label>
+              <Input
+                id="edit-user-password-confirmation"
+                type="password"
+                value={editPasswordConfirmation}
+                aria-invalid={editPasswordConfirmation !== editPassword}
+                onChange={(event) => setEditPasswordConfirmation(event.target.value)}
+                minLength={8}
+                required
+              />
+              {editPasswordConfirmation !== editPassword ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {t('users.passwordsDoNotMatch')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {editMutation.isError ? (
+            <ErrorBanner
+              error={editMutation.error}
+              message={getErrorMessage(editMutation.error, resolveErrorCode)}
+            />
+          ) : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={editMutation.isPending}
+              onClick={() => setEditingUser(null)}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="submit"
+              disabled={
+                editMutation.isPending ||
+                !editFullName.trim() ||
+                !editEmail.trim() ||
+                (editPassword.length > 0 &&
+                  (editPassword.length < 8 || editPasswordConfirmation !== editPassword))
+              }
+            >
+              <Save className="size-4" />
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
     </>
   )
 }

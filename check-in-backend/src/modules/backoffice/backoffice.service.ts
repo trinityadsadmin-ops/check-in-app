@@ -1,5 +1,6 @@
 import {
   badRequest,
+  emailAlreadyExists,
   employeeCodeAlreadyExists,
   forbidden,
   notFound
@@ -146,6 +147,23 @@ function profileWriteError(error: unknown) {
   }
 
   return badRequest('Unable to save user profile')
+}
+
+function isDuplicateEmailError(error: unknown) {
+  if (typeof error !== 'object' || error === null) {
+    return false
+  }
+
+  const authError = error as { message?: unknown; code?: unknown }
+  const message = typeof authError.message === 'string' ? authError.message.toLowerCase() : ''
+  const code = typeof authError.code === 'string' ? authError.code.toLowerCase() : ''
+
+  return (
+    code.includes('email') ||
+    message.includes('email already') ||
+    message.includes('already been registered') ||
+    message.includes('already exists')
+  )
 }
 
 function mapRole(row: RoleRow) {
@@ -385,6 +403,18 @@ export async function updateBackofficeUser(input: {
 }) {
   const supabaseAdmin = requireSupabaseAdmin()
   const updates: Record<string, unknown> = {}
+  const authUpdates: { email?: string; password?: string; email_confirm?: boolean } = {}
+
+  if (input.payload.email !== undefined) {
+    updates.email = input.payload.email
+    authUpdates.email = input.payload.email
+    // Backoffice-managed accounts do not require a verification email.
+    authUpdates.email_confirm = true
+  }
+
+  if (input.payload.password !== undefined) {
+    authUpdates.password = input.payload.password
+  }
 
   if (input.payload.fullName !== undefined) {
     updates.full_name = input.payload.fullName
@@ -406,14 +436,50 @@ export async function updateBackofficeUser(input: {
     updates.is_active = input.payload.isActive
   }
 
-  if (Object.keys(updates).length === 0) {
+  if (Object.keys(updates).length === 0 && Object.keys(authUpdates).length === 0) {
     return { user: await getUserById(input.userId) }
   }
 
-  const { error } = await supabaseAdmin.from('profiles').update(updates).eq('id', input.userId)
+  // Validate the only profile-level unique value before changing Auth, because
+  // Supabase Auth and public.profiles cannot share a database transaction.
+  if (input.payload.employeeCode) {
+    const { data: existingEmployeeCode, error: employeeCodeError } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('employee_code', input.payload.employeeCode)
+      .neq('id', input.userId)
+      .maybeSingle()
 
-  if (error) {
-    throw profileWriteError(error)
+    if (employeeCodeError) {
+      throw profileWriteError(employeeCodeError)
+    }
+
+    if (existingEmployeeCode) {
+      throw employeeCodeAlreadyExists()
+    }
+  }
+
+  if (Object.keys(authUpdates).length > 0) {
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+      input.userId,
+      authUpdates
+    )
+
+    if (authError) {
+      if (isDuplicateEmailError(authError)) {
+        throw emailAlreadyExists()
+      }
+
+      throw badRequest('Unable to update user credentials')
+    }
+  }
+
+  if (Object.keys(updates).length > 0) {
+    const { error } = await supabaseAdmin.from('profiles').update(updates).eq('id', input.userId)
+
+    if (error) {
+      throw profileWriteError(error)
+    }
   }
 
   await writeAuditLog({
@@ -421,7 +487,13 @@ export async function updateBackofficeUser(input: {
     action: 'user.update',
     resourceType: 'profile',
     resourceId: input.userId,
-    metadata: { updates },
+    metadata: {
+      updates,
+      credentialsUpdated: {
+        email: input.payload.email !== undefined,
+        password: input.payload.password !== undefined
+      }
+    },
     c: input.c
   })
 

@@ -253,6 +253,8 @@ backofficeRoutes.openapi(updateUserRoute, async (c) => {
 
   if (
     payload.fullName !== undefined ||
+    payload.email !== undefined ||
+    payload.password !== undefined ||
     payload.employeeCode !== undefined ||
     payload.isActive !== undefined
   ) {
