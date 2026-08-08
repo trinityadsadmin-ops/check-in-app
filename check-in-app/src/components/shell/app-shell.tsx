@@ -79,7 +79,7 @@ export function AppShell({
       <div
         className="flex items-center gap-3"
         style={{
-          padding: '58px 22px 14px',
+          padding: 'calc(14px + env(safe-area-inset-top, 0px)) 22px 14px',
           background: '#fff',
           borderBottom: '1px solid var(--trinity-border)'
         }}
@@ -182,7 +182,7 @@ export function AppShell({
           zIndex: 75,
           background: '#fff',
           borderTop: '1px solid var(--trinity-border)',
-          padding: '10px 38px 22px'
+          padding: '10px 38px calc(22px + env(safe-area-inset-bottom, 0px))'
         }}
       >
         {navItems.map((item) => {

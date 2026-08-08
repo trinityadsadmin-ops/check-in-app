@@ -36,17 +36,28 @@ export function CheckInSheet() {
   const position = coords ? { lat: coords.lat, lng: coords.lng } : null
 
   // Prefer the assigned polygon containing the current GPS fix, then the first
-  // assignment for the initial map view, and finally attendance history.
+  // current assignment for the initial map view. Attendance history is only
+  // used when the user has no current assignment at all — it must never
+  // substitute for a live assignment, since a stale snapshot polygon (from
+  // before a site's geofence was edited, or from a different site) could
+  // contain the current point while the live assignment does not, showing
+  // "inside" client-side while the server (which only checks live
+  // assignments) correctly rejects the check-in.
   const attendanceQuery = useListFrontendAttendance({ perPage: 30 })
   const assignedQuery = useGetFrontendWorkAreas()
   const workArea = useMemo(() => {
     const assignments = assignedQuery.data?.workAreas ?? []
-    const assignedArea = position
+
+    if (assignments.length === 0) {
+      return latestWorkArea(attendanceQuery.data?.attendanceDays ?? [])
+    }
+
+    const matchedArea = position
       ? assignments.find(({ workArea: area }) =>
           pointInPolygon(position, area.areaNodes.map((node) => ({ lat: node.lat, lng: node.lng })))
         )
-      : assignments[0]
-    const nodes = assignedArea?.workArea.areaNodes
+      : null
+    const nodes = (matchedArea ?? assignments[0]).workArea.areaNodes
 
     if (nodes && nodes.length > 0) {
       const polygon = nodes.map((n) => ({ lat: n.lat, lng: n.lng }))
