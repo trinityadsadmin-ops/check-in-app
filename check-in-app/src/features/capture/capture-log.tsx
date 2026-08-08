@@ -1,6 +1,6 @@
 'use client'
 
-import { Camera, Clock, MapPin, Trash2, Users, X } from 'lucide-react'
+import { Camera, Clock, History, MapPin, Trash2, X } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
@@ -300,9 +300,9 @@ function InspectionDetail({
 /**
  * AREA INSPECTION ("ตรวจพื้นที่") log — a feature separate from attendance
  * check-in photos. Staff capture ad-hoc site-condition reports; the log shows
- * every report from everyone assigned to the same work site
- * ({@link useListSiteAreaInspections}). The signed-in user may delete their own
- * reports within a 15-minute window.
+ * the signed-in user's own upload history across all of their assigned work
+ * sites ({@link useListSiteAreaInspections}). The signed-in user may delete
+ * their own reports within a 15-minute window.
  */
 export function CaptureLog() {
   const { t, lang } = useI18n()
@@ -496,8 +496,8 @@ export function CaptureLog() {
             gap: 4
           }}
         >
-          <Users size={13} />
-          {t.site_scoped}
+          <History size={13} />
+          {t.own_uploads}
         </div>
       </div>
 

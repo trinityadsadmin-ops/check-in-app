@@ -39,10 +39,20 @@ export function HistoryRow({ row, size = 'sm' }: { row: AttendanceRow; size?: 's
       >
         <Icon size={md ? 19 : 18} color={iconFg} />
       </div>
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: md ? 14 : 13.5, fontWeight: 600 }}>{row.label}</div>
-        <div style={{ fontSize: md ? 11.5 : 11, color: 'var(--trinity-mfg)', marginTop: 2 }}>
+        <div
+          style={{
+            fontSize: md ? 11.5 : 11,
+            color: 'var(--trinity-mfg)',
+            marginTop: 2,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
           {row.meta}
+          {row.workLocationName ? ` · ${row.workLocationName}` : ''}
         </div>
       </div>
       <div style={{ textAlign: 'right' }}>

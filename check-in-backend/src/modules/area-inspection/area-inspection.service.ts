@@ -343,8 +343,8 @@ export async function listAreaInspections(
 }
 
 /**
- * Site-scoped list for staff: returns every area inspection captured at the
- * caller's active work locations, so everyone on an assigned site sees them all.
+ * Site-scoped list for staff: returns the caller's own area inspections captured
+ * at any of their active work locations (multi-site aware), not other people's.
  *
  * When the caller has no active work location, their captures are stored with a
  * null work_location_id (which can never match a site filter), so we fall back
@@ -375,6 +375,7 @@ export async function listSiteAreaInspections(input: {
     page: input.query.page,
     perPage: input.query.perPage,
     workLocationIds,
+    userId: input.userId,
     dateFrom: input.query.dateFrom,
     dateTo: input.query.dateTo,
     sortBy: 'capturedAt',

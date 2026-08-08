@@ -1,6 +1,6 @@
 'use client'
 
-import { Clock, Info, MapPin, RotateCcw, Scan, Send, X } from 'lucide-react'
+import { Clock, Info, MapPin, RotateCcw, Scan, Send, SwitchCamera, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useGeolocation } from '@/lib/geo/use-geolocation'
@@ -59,6 +59,7 @@ export function CameraCapture({
   const notesInputId = useId()
 
   const [streamReady, setStreamReady] = useState(false)
+  const [facing, setFacing] = useState<'user' | 'environment'>('environment')
   const [captured, setCaptured] = useState<CapturedPhoto | null>(null)
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -78,11 +79,17 @@ export function CameraCapture({
     setStreamReady(false)
   }, [])
 
-  // Acquire camera + a GPS fix whenever the overlay opens; tear down on close.
+  // Acquire a GPS fix whenever the overlay opens.
+  useEffect(() => {
+    if (!open) return
+    request()
+  }, [open, request])
+
+  // Acquire the camera stream whenever the overlay opens or the facing mode is
+  // toggled; tear down on close/toggle so the previous device is released.
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    request()
 
     const start = async () => {
       if (
@@ -93,7 +100,7 @@ export function CameraCapture({
       }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
+          video: { facingMode: facing },
           audio: false
         })
         if (cancelled) {
@@ -118,7 +125,7 @@ export function CameraCapture({
       cancelled = true
       stopStream()
     }
-  }, [open, request, stopStream])
+  }, [open, facing, stopStream])
 
   // Reset transient state each time the overlay opens.
   useEffect(() => {
@@ -182,6 +189,10 @@ export function CameraCapture({
     },
     [acceptBlob]
   )
+
+  const toggleFacing = useCallback(() => {
+    setFacing((prev) => (prev === 'environment' ? 'user' : 'environment'))
+  }, [])
 
   const retake = useCallback(() => {
     if (captured) URL.revokeObjectURL(captured.previewUrl)
@@ -372,7 +383,7 @@ export function CameraCapture({
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
+        capture={facing}
         onChange={onFilePicked}
         style={{ display: 'none' }}
       />
@@ -472,33 +483,56 @@ export function CameraCapture({
             gap: 14
           }}
         >
-          <button
-            type="button"
-            onClick={shutter}
-            aria-label={t.capture_title}
-            style={{
-              width: 74,
-              height: 74,
-              borderRadius: '50%',
-              background: '#fff',
-              border: '4px solid rgba(255,255,255,.45)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0
-            }}
-          >
-            <div
+          <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+            <div style={{ width: 44, height: 44 }} />
+            <button
+              type="button"
+              onClick={shutter}
+              aria-label={t.capture_title}
               style={{
-                width: 58,
-                height: 58,
+                width: 74,
+                height: 74,
                 borderRadius: '50%',
                 background: '#fff',
-                border: '1px solid #cbd5e1'
+                border: '4px solid rgba(255,255,255,.45)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
               }}
-            />
-          </button>
+            >
+              <div
+                style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  border: '1px solid #cbd5e1'
+                }}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={toggleFacing}
+              aria-label="Switch camera"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,.15)',
+                border: '1px solid rgba(255,255,255,.3)',
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+            >
+              <SwitchCamera size={20} />
+            </button>
+          </div>
           <div
             style={{
               fontSize: 11,

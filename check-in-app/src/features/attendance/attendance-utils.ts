@@ -139,6 +139,8 @@ export type AttendanceRow = {
   /** Inside / Outside tag text, or the review status for the day. */
   tag: string
   inside: boolean
+  /** Name of the work location the event's snapshot points at, or null if unresolved. */
+  workLocationName: string | null
 }
 
 function dayMeta(workDate: string, lang: 'th' | 'en', todayLabel: string, yesterdayLabel: string): string {
@@ -167,12 +169,14 @@ export function toRows(
   const rows: AttendanceRow[] = []
   for (const day of sortDaysDesc(days)) {
     const meta = dayMeta(day.workDate, lang, labels.today, labels.yesterday)
+    const locationNameById = new Map(day.workLocations.map((loc) => [loc.id, loc.name]))
     const eventsDesc = nonNull(day.events).sort(
       (a, b) => new Date(b.capturedAt).getTime() - new Date(a.capturedAt).getTime()
     )
     for (const event of eventsDesc) {
       const isCheckIn = event.type === 'CHECK_IN'
       const inside = isInside(event)
+      const workLocationId = event.workAreaSnapshot?.workLocationId
       rows.push({
         id: event.id,
         isCheckIn,
@@ -180,7 +184,8 @@ export function toRows(
         meta,
         time: fmtTime(event.capturedAt, lang),
         tag: inside ? labels.tagIn : labels.tagOut,
-        inside
+        inside,
+        workLocationName: workLocationId ? (locationNameById.get(workLocationId) ?? null) : null
       })
     }
   }
