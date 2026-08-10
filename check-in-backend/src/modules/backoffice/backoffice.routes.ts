@@ -68,6 +68,7 @@ import {
   BackofficeUserResponseSchema,
   CreateBackofficeUserRequestSchema,
   CreateWorkLocationRequestSchema,
+  DeleteWorkLocationResponseSchema,
   EmployeeWorkAreasResponseSchema,
   GetUserDeviceResponseSchema,
   ListAuditLogsResponseSchema,
@@ -96,6 +97,7 @@ import {
 import {
   createBackofficeUser,
   createWorkLocation,
+  deleteWorkLocation,
   getUserEffectivePermissions,
   getUserPermissionOverrides,
   getUserDevice,
@@ -593,6 +595,40 @@ backofficeRoutes.openapi(updateWorkLocationRoute, async (c) => {
     await updateWorkLocation({
       workLocationId,
       payload,
+      actorUserId: c.get('currentUser').id,
+      c
+    }),
+    200
+  )
+})
+
+const deleteWorkLocationRoute = createRoute({
+  method: 'delete',
+  path: '/work-locations/{workLocationId}',
+  operationId: 'deleteWorkLocation',
+  tags: ['Backoffice'],
+  request: {
+    params: WorkLocationIdParamSchema
+  },
+  responses: {
+    200: {
+      description: 'Work location archived and employee assignments deactivated',
+      content: {
+        'application/json': {
+          schema: DeleteWorkLocationResponseSchema
+        }
+      }
+    },
+    ...commonErrorResponses
+  }
+})
+
+backofficeRoutes.openapi(deleteWorkLocationRoute, async (c) => {
+  ensurePermission(c, permissions.workAreasManage)
+  const { workLocationId } = c.req.valid('param')
+  return c.json(
+    await deleteWorkLocation({
+      workLocationId,
       actorUserId: c.get('currentUser').id,
       c
     }),

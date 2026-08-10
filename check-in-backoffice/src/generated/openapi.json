@@ -1848,6 +1848,17 @@
           }
         }
       },
+      "DeleteWorkLocationResponse": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "deleted"
+        ]
+      },
       "WorkLocationUsersResponse": {
         "type": "object",
         "properties": {
@@ -4167,6 +4178,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WorkLocationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteWorkLocation",
+        "tags": [
+          "Backoffice"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "workLocationId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Work location archived and employee assignments deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteWorkLocationResponse"
                 }
               }
             }

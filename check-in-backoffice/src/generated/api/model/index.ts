@@ -53,6 +53,7 @@ export * from './currentUserResponse';
 export * from './deleteAreaInspectionResponse';
 export * from './deleteSalaryRecordResponse';
 export * from './deleteSalaryUploadResponse';
+export * from './deleteWorkLocationResponse';
 export * from './deviceBinding';
 export * from './effectivePermission';
 export * from './effectivePermissionOverrideEffect';

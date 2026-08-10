@@ -210,6 +210,12 @@ export const WorkLocationResponseSchema = z
   })
   .openapi('WorkLocationResponse')
 
+export const DeleteWorkLocationResponseSchema = z
+  .object({
+    deleted: z.boolean()
+  })
+  .openapi('DeleteWorkLocationResponse')
+
 export const WorkLocationUserSchema = z
   .object({
     id: z.string().uuid(),

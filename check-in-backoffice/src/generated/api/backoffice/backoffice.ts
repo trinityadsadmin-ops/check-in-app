@@ -35,6 +35,7 @@ import type {
   DeleteAreaInspectionResponse,
   DeleteSalaryRecordResponse,
   DeleteSalaryUploadResponse,
+  DeleteWorkLocationResponse,
   EmergencyLogResponse,
   EmployeeWorkAreasResponse,
   ErrorResponse,
@@ -1179,6 +1180,76 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       > => {
 
       const mutationOptions = getUpdateWorkLocationMutationOptions(options);
+
+      return useMutation(mutationOptions , queryClient);
+    }
+    export const getDeleteWorkLocationUrl = (workLocationId: string,) => {
+
+
+
+
+  return `/api/backoffice/work-locations/${workLocationId}`
+}
+
+export const deleteWorkLocation = async (workLocationId: string, options?: RequestInit): Promise<DeleteWorkLocationResponse> => {
+
+  const res = await fetch(getDeleteWorkLocationUrl(workLocationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: DeleteWorkLocationResponse = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+export const getDeleteWorkLocationMutationOptions = <TError = ErrorResponse | ErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkLocation>>, TError,{workLocationId: string}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWorkLocation>>, TError,{workLocationId: string}, TContext> => {
+
+const mutationKey = ['deleteWorkLocation'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWorkLocation>>, {workLocationId: string}> = (props) => {
+          const {workLocationId} = props ?? {};
+
+          return  deleteWorkLocation(workLocationId,fetchOptions)
+        }
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWorkLocationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWorkLocation>>>
+
+    export type DeleteWorkLocationMutationError = ErrorResponse | ErrorResponse
+
+    export const useDeleteWorkLocation = <TError = ErrorResponse | ErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkLocation>>, TError,{workLocationId: string}, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWorkLocation>>,
+        TError,
+        {workLocationId: string},
+        TContext
+      > => {
+
+      const mutationOptions = getDeleteWorkLocationMutationOptions(options);
 
       return useMutation(mutationOptions , queryClient);
     }

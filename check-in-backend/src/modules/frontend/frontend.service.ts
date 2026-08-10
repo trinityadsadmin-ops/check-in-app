@@ -63,6 +63,7 @@ export async function getOwnWorkAreas(userId: string) {
       workAreas.map((workArea) => workArea.workLocationId)
     )
     .eq('is_active', true)
+    .is('deleted_at', null)
 
   if (error) {
     throw badRequest(error.message)

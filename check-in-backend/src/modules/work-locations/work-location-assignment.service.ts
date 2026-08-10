@@ -36,6 +36,7 @@ export async function listActiveWorkAreasForUser(userId: string) {
     .select('id')
     .in('id', workLocationIds)
     .eq('is_active', true)
+    .is('deleted_at', null)
 
   if (locationsError) {
     throw badRequest(locationsError.message)

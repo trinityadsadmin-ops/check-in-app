@@ -731,6 +731,7 @@ export async function listWorkLocations() {
   const { data, error } = await supabaseAdmin
     .from('work_locations')
     .select('id,name,description,area_nodes,is_active,created_at')
+    .is('deleted_at', null)
     .order('name', { ascending: true })
 
   if (error) {
@@ -803,6 +804,7 @@ export async function updateWorkLocation(input: {
     .from('work_locations')
     .update(updates)
     .eq('id', input.workLocationId)
+    .is('deleted_at', null)
     .select('id,name,description,area_nodes,is_active,created_at')
     .maybeSingle()
 
@@ -824,6 +826,39 @@ export async function updateWorkLocation(input: {
   })
 
   return { workLocation: mapWorkLocation(data as WorkLocationRow) }
+}
+
+export async function deleteWorkLocation(input: {
+  workLocationId: string
+  actorUserId: string
+  c?: Context<AppEnv> | undefined
+}) {
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { data, error } = await supabaseAdmin.rpc('archive_work_location', {
+    p_work_location_id: input.workLocationId
+  })
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  if (!data) {
+    throw notFound('Work location was not found')
+  }
+
+  await writeAuditLog({
+    actorUserId: input.actorUserId,
+    action: 'work_location.delete',
+    resourceType: 'work_location',
+    resourceId: input.workLocationId,
+    metadata: {
+      deletionType: 'archive',
+      employeeAssignmentsDeactivated: true
+    },
+    c: input.c
+  })
+
+  return { deleted: true }
 }
 
 export async function getUserWorkAreas(userId: string) {
@@ -876,6 +911,7 @@ export async function setUserWorkArea(input: {
     .select('id,name,description,area_nodes,is_active,created_at')
     .eq('id', input.payload.workLocationId)
     .eq('is_active', true)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (workLocationError) {

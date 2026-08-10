@@ -45,6 +45,7 @@ import type { LatLngNode } from '@/generated/api/model'
 import { usePermissions } from '@/hooks/use-permissions'
 import {
   createWorkLocation,
+  deleteWorkLocation,
   listWorkLocationUsers,
   listWorkLocations,
   setUserWorkArea,
@@ -75,6 +76,7 @@ export function WorkAreasPage() {
   const [selectedLocationId, setSelectedLocationId] = useState('')
   const [isManageSheetOpen, setIsManageSheetOpen] = useState(false)
   const [isDisableConfirmOpen, setIsDisableConfirmOpen] = useState(false)
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [locationName, setLocationName] = useState('')
   const [locationDescription, setLocationDescription] = useState('')
   const [areaNodes, setAreaNodes] = useState<LatLngNode[]>(getDefaultAreaNodes())
@@ -170,6 +172,19 @@ export function WorkAreasPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-locations'] })
       toast.success(t('workAreas.toastLocationUpdated'))
+    },
+    onError: showActionError
+  })
+  const deleteLocationMutation = useMutation({
+    mutationFn: () => deleteWorkLocation(selectedLocationId),
+    onSuccess: () => {
+      setIsDeleteConfirmOpen(false)
+      setIsManageSheetOpen(false)
+      setSelectedLocationId('')
+      queryClient.invalidateQueries({ queryKey: ['work-locations'] })
+      queryClient.invalidateQueries({ queryKey: ['work-location-users', selectedLocationId] })
+      queryClient.invalidateQueries({ queryKey: ['user-work-areas'] })
+      toast.success(t('workAreas.toastLocationDeleted'))
     },
     onError: showActionError
   })
@@ -380,24 +395,35 @@ export function WorkAreasPage() {
                   ) : null}
                   <div className="flex items-center justify-between">
                     {canManageWorkAreas ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={cn(
-                          selectedLocation.isActive &&
-                            'border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
-                        )}
-                        disabled={toggleLocationMutation.isPending}
-                        onClick={() => {
-                          if (selectedLocation.isActive) {
-                            setIsDisableConfirmOpen(true)
-                          } else {
-                            toggleLocationMutation.mutate()
-                          }
-                        }}
-                      >
-                        {selectedLocation.isActive ? t('common.disable') : t('common.enable')}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={cn(
+                            selectedLocation.isActive &&
+                              'border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
+                          )}
+                          disabled={toggleLocationMutation.isPending || deleteLocationMutation.isPending}
+                          onClick={() => {
+                            if (selectedLocation.isActive) {
+                              setIsDisableConfirmOpen(true)
+                            } else {
+                              toggleLocationMutation.mutate()
+                            }
+                          }}
+                        >
+                          {selectedLocation.isActive ? t('common.disable') : t('common.enable')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          disabled={toggleLocationMutation.isPending || deleteLocationMutation.isPending}
+                          onClick={() => setIsDeleteConfirmOpen(true)}
+                        >
+                          <Trash2 className="size-4" />
+                          {t('common.delete')}
+                        </Button>
+                      </div>
                     ) : (
                       <div />
                     )}
@@ -520,6 +546,29 @@ export function WorkAreasPage() {
                     <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                     <AlertDialogAction onClick={() => toggleLocationMutation.mutate()}>
                       {t('common.disable')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('workAreas.confirmDeleteTitle')}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('workAreas.confirmDeleteDescription')} {selectedLocation.name}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={deleteLocationMutation.isPending}>
+                      {t('common.cancel')}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="destructive"
+                      disabled={deleteLocationMutation.isPending}
+                      onClick={() => deleteLocationMutation.mutate()}
+                    >
+                      <Trash2 className="size-4" />
+                      {t('workAreas.confirmDeleteAction')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

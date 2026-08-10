@@ -48,7 +48,13 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import type { AttendanceDayReviewStatus, ListAttendanceParams, WorkLocation } from '@/generated/api/model'
+import type {
+  AttendanceDay,
+  AttendanceDayReviewStatus,
+  AttendanceEvent,
+  ListAttendanceParams,
+  WorkLocation
+} from '@/generated/api/model'
 import { UserCombobox } from '@/features/users/user-combobox'
 import { usePermissions } from '@/hooks/use-permissions'
 import { listAttendance, listWorkLocations, reviewAttendance } from '@/lib/api/backoffice'
@@ -59,6 +65,14 @@ import { cn } from '@/lib/utils'
 type ReviewStatusFilter = '' | AttendanceDayReviewStatus
 type AttendanceSortBy = NonNullable<ListAttendanceParams['sortBy']>
 type SortDirection = NonNullable<ListAttendanceParams['sortDirection']>
+type AttendanceEventRecord = Exclude<AttendanceEvent, null>
+
+type AttendanceVisit = {
+  id: string
+  checkIn: AttendanceEventRecord | null
+  checkOut: AttendanceEventRecord | null
+  workLocationNames: string[]
+}
 
 const attendancePerPage = 20
 
@@ -92,6 +106,59 @@ function getEmployeeLabel(day: { user: { fullName: string | null; email: string 
 
 function getEmployeeDescription(day: { user: { employeeCode: string | null; email: string | null } | null; userId: string }) {
   return day.user?.employeeCode ?? day.user?.email ?? day.userId
+}
+
+function getAttendanceVisits(day: AttendanceDay): AttendanceVisit[] {
+  const locationNamesById = new Map(
+    day.workLocations.map((location) => [location.id, location.name])
+  )
+  const events = day.events
+    .filter((event): event is AttendanceEventRecord => event !== null)
+    .sort((left, right) => left.capturedAt.localeCompare(right.capturedAt))
+  const visits: AttendanceVisit[] = []
+  let openVisit: AttendanceVisit | null = null
+
+  for (const event of events) {
+    const locationName = locationNamesById.get(event.workAreaSnapshot.workLocationId)
+
+    if (event.type === 'CHECK_IN') {
+      openVisit = {
+        id: event.id,
+        checkIn: event,
+        checkOut: null,
+        workLocationNames: locationName ? [locationName] : []
+      }
+      visits.push(openVisit)
+      continue
+    }
+
+    if (!openVisit) {
+      visits.push({
+        id: event.id,
+        checkIn: null,
+        checkOut: event,
+        workLocationNames: locationName ? [locationName] : []
+      })
+      continue
+    }
+
+    openVisit.checkOut = event
+    if (locationName && !openVisit.workLocationNames.includes(locationName)) {
+      openVisit.workLocationNames.push(locationName)
+    }
+    openVisit = null
+  }
+
+  return visits.length > 0
+    ? visits
+    : [
+        {
+          id: day.id,
+          checkIn: day.checkIn,
+          checkOut: day.checkOut,
+          workLocationNames: day.workLocations.map((location) => location.name)
+        }
+      ]
 }
 
 export function AttendancePage() {
@@ -239,15 +306,19 @@ export function AttendancePage() {
         pages.push(await listAttendance({ ...attendanceParams, page, perPage: 100 }))
       }
 
-      const records = pages.flatMap((response) => response.attendanceDays).map((day) => ({
-        [t('attendance.workDate')]: day.workDate,
-        [t('common.employee')]: getEmployeeLabel(day),
-        [t('users.employeeCode')]: getEmployeeDescription(day),
-        [t('attendance.workLocation')]: day.workLocations.map((location) => location.name).join(', '),
-        [t('attendance.checkIn')]: formatTime(day.checkIn?.capturedAt, locale),
-        [t('attendance.checkOut')]: formatTime(day.checkOut?.capturedAt, locale),
-        [t('common.status')]: t(translateStatusKey(day.reviewStatus))
-      }))
+      const records = pages.flatMap((response) =>
+        response.attendanceDays.flatMap((day) =>
+          getAttendanceVisits(day).map((visit) => ({
+            [t('attendance.workDate')]: day.workDate,
+            [t('common.employee')]: getEmployeeLabel(day),
+            [t('users.employeeCode')]: getEmployeeDescription(day),
+            [t('attendance.workLocation')]: visit.workLocationNames.join(', '),
+            [t('attendance.checkIn')]: formatTime(visit.checkIn?.capturedAt, locale),
+            [t('attendance.checkOut')]: formatTime(visit.checkOut?.capturedAt, locale),
+            [t('common.status')]: t(translateStatusKey(day.reviewStatus))
+          }))
+        )
+      )
       const worksheet = XLSX.utils.json_to_sheet(records)
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, t('attendance.title'))
@@ -483,113 +554,125 @@ export function AttendancePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {attendanceDays.map((day) => (
-                  <TableRow key={day.id}>
-                    <TableCell className="font-medium">{day.workDate}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">
-                        {getEmployeeLabel(day)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {getEmployeeDescription(day)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {day.workLocations.length > 0 ? (
-                        <div className="grid gap-1">
-                          {day.workLocations.map((location) => (
-                            <span key={location.id}>{location.name}</span>
-                          ))}
-                        </div>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div>{formatTime(day.checkIn?.capturedAt, locale)}</div>
-                      {day.checkIn ? (
-                        <a
-                          className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
-                          href={`https://www.openstreetmap.org/?mlat=${day.checkIn.lat}&mlon=${day.checkIn.lng}#map=18/${day.checkIn.lat}/${day.checkIn.lng}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {formatLocation(day.checkIn.lat, day.checkIn.lng)}
-                          <ExternalLink className="size-3" />
-                        </a>
+                {attendanceDays.flatMap((day) => {
+                  const visits = getAttendanceVisits(day)
+
+                  return visits.map((visit, index) => (
+                    <TableRow key={`${day.id}-${visit.id}`}>
+                      {index === 0 ? (
+                        <TableCell rowSpan={visits.length} className="align-top font-medium">
+                          {day.workDate}
+                        </TableCell>
                       ) : null}
-                      {day.checkIn?.photoUrl ? (
-                        <a
-                          className="mt-1 flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
-                          href={day.checkIn.photoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {t('common.photo')} <ExternalLink className="size-3" />
-                        </a>
+                      {index === 0 ? (
+                        <TableCell rowSpan={visits.length} className="align-top">
+                          <div className="font-medium">{getEmployeeLabel(day)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {getEmployeeDescription(day)}
+                          </div>
+                        </TableCell>
                       ) : null}
-                    </TableCell>
-                    <TableCell>
-                      <div>{formatTime(day.checkOut?.capturedAt, locale)}</div>
-                      {day.checkOut ? (
-                        <a
-                          className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
-                          href={`https://www.openstreetmap.org/?mlat=${day.checkOut.lat}&mlon=${day.checkOut.lng}#map=18/${day.checkOut.lat}/${day.checkOut.lng}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {formatLocation(day.checkOut.lat, day.checkOut.lng)}
-                          <ExternalLink className="size-3" />
-                        </a>
+                      <TableCell>
+                        {visit.workLocationNames.length > 0 ? (
+                          <div className="grid gap-1">
+                            {visit.workLocationNames.map((locationName) => (
+                              <span key={locationName}>{locationName}</span>
+                            ))}
+                          </div>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div>{formatTime(visit.checkIn?.capturedAt, locale)}</div>
+                        {visit.checkIn ? (
+                          <a
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
+                            href={`https://www.openstreetmap.org/?mlat=${visit.checkIn.lat}&mlon=${visit.checkIn.lng}#map=18/${visit.checkIn.lat}/${visit.checkIn.lng}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {formatLocation(visit.checkIn.lat, visit.checkIn.lng)}
+                            <ExternalLink className="size-3" />
+                          </a>
+                        ) : null}
+                        {visit.checkIn?.photoUrl ? (
+                          <a
+                            className="mt-1 flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
+                            href={visit.checkIn.photoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {t('common.photo')} <ExternalLink className="size-3" />
+                          </a>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        <div>{formatTime(visit.checkOut?.capturedAt, locale)}</div>
+                        {visit.checkOut ? (
+                          <a
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
+                            href={`https://www.openstreetmap.org/?mlat=${visit.checkOut.lat}&mlon=${visit.checkOut.lng}#map=18/${visit.checkOut.lat}/${visit.checkOut.lng}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {formatLocation(visit.checkOut.lat, visit.checkOut.lng)}
+                            <ExternalLink className="size-3" />
+                          </a>
+                        ) : null}
+                        {visit.checkOut?.photoUrl ? (
+                          <a
+                            className="mt-1 flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
+                            href={visit.checkOut.photoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {t('common.photo')} <ExternalLink className="size-3" />
+                          </a>
+                        ) : null}
+                      </TableCell>
+                      {index === 0 ? (
+                        <TableCell rowSpan={visits.length} className="align-top">
+                          <Badge variant={statusVariant(day.reviewStatus)}>
+                            {t(translateStatusKey(day.reviewStatus))}
+                          </Badge>
+                        </TableCell>
                       ) : null}
-                      {day.checkOut?.photoUrl ? (
-                        <a
-                          className="mt-1 flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
-                          href={day.checkOut.photoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {t('common.photo')} <ExternalLink className="size-3" />
-                        </a>
+                      {index === 0 ? (
+                        <TableCell rowSpan={visits.length} className="align-top">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={reviewMutation.isPending || !canReviewAttendance}
+                              onClick={() =>
+                                reviewMutation.mutate({
+                                  attendanceDayId: day.id,
+                                  status: 'APPROVED'
+                                })
+                              }
+                            >
+                              {t('attendance.approve')}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={reviewMutation.isPending || !canReviewAttendance}
+                              onClick={() =>
+                                reviewMutation.mutate({
+                                  attendanceDayId: day.id,
+                                  status: 'REJECTED'
+                                })
+                              }
+                            >
+                              {t('attendance.reject')}
+                            </Button>
+                          </div>
+                        </TableCell>
                       ) : null}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(day.reviewStatus)}>
-                        {t(translateStatusKey(day.reviewStatus))}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={reviewMutation.isPending || !canReviewAttendance}
-                          onClick={() =>
-                            reviewMutation.mutate({
-                              attendanceDayId: day.id,
-                              status: 'APPROVED'
-                            })
-                          }
-                        >
-                          {t('attendance.approve')}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          disabled={reviewMutation.isPending || !canReviewAttendance}
-                          onClick={() =>
-                            reviewMutation.mutate({
-                              attendanceDayId: day.id,
-                              status: 'REJECTED'
-                            })
-                          }
-                        >
-                          {t('attendance.reject')}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                    </TableRow>
+                  ))
+                })}
               </TableBody>
             </Table>
           ) : (
