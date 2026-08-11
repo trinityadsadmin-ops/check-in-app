@@ -1,7 +1,8 @@
 'use client'
 
 import { Check, Loader2, Signal, SignalLow } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import GeofenceMap from '@/components/map/geofence-map'
@@ -21,6 +22,9 @@ import { latestWorkArea, pointInPolygon } from '@/features/attendance/attendance
 
 // Default centre when the user has no history and no fix yet (central Bangkok).
 const FALLBACK_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 }
+
+// Drag-down distance (px) past which releasing the handle closes the sheet.
+const DRAG_CLOSE_PX = 90
 
 /**
  * Bottom-sheet geofence verification. Confirm submits the check-in/out punch
@@ -94,6 +98,43 @@ export function CheckInSheet() {
     const id = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(id)
   }, [isOpen])
+
+  // Pull-down-to-close: drag the top handle, release past DRAG_CLOSE_PX to dismiss.
+  const dragStateRef = useRef({ dragging: false, startY: 0, deltaY: 0 })
+  const [dragY, setDragY] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      dragStateRef.current = { dragging: false, startY: 0, deltaY: 0 }
+      setDragY(0)
+      setIsDragging(false)
+    }
+  }, [isOpen])
+
+  const onHandlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    dragStateRef.current = { dragging: true, startY: e.clientY, deltaY: 0 }
+    setIsDragging(true)
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const onHandlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragStateRef.current.dragging) return
+    const delta = Math.max(0, e.clientY - dragStateRef.current.startY)
+    dragStateRef.current.deltaY = delta
+    setDragY(delta)
+  }
+
+  const endDrag = () => {
+    if (!dragStateRef.current.dragging) return
+    const { deltaY } = dragStateRef.current
+    dragStateRef.current.dragging = false
+    setIsDragging(false)
+    setDragY(0)
+    if (deltaY > DRAG_CLOSE_PX) {
+      closeSheet()
+    }
+  }
 
   if (!isOpen) {
     return null
@@ -187,18 +228,33 @@ export function CheckInSheet() {
           padding: '8px 18px 26px',
           animation: 'rm-sheet .28s cubic-bezier(.16,1,.3,1)',
           maxHeight: '92%',
-          overflowY: 'auto'
+          overflowY: 'auto',
+          transform: dragY ? `translateY(${dragY}px)` : undefined,
+          transition: isDragging ? 'none' : 'transform .25s cubic-bezier(.16,1,.3,1)'
         }}
       >
         <div
+          onPointerDown={onHandlePointerDown}
+          onPointerMove={onHandlePointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
           style={{
-            width: 38,
-            height: 4,
-            borderRadius: 2,
-            background: 'var(--trinity-border2)',
-            margin: '6px auto 14px'
+            margin: '-4px -18px 0',
+            padding: '10px 0 8px',
+            touchAction: 'none',
+            cursor: isDragging ? 'grabbing' : 'grab'
           }}
-        />
+        >
+          <div
+            style={{
+              width: 38,
+              height: 4,
+              borderRadius: 2,
+              background: 'var(--trinity-border2)',
+              margin: '0 auto'
+            }}
+          />
+        </div>
         <div className="flex items-center justify-between">
           <div style={{ fontSize: 18, fontWeight: 600 }}>{sheetTitle}</div>
           <div
