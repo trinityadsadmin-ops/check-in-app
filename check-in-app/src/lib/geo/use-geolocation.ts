@@ -21,7 +21,7 @@ export type UseGeolocationResult = {
    * rejected.
    */
   permission: 'unknown' | 'granted' | 'prompt' | 'denied' | 'unsupported'
-  /** Requests a single fresh position fix. No-ops (sets status 'denied') if permission is already known-denied. */
+  /** Requests a single fresh position fix. */
   request: () => void
 }
 
@@ -87,11 +87,12 @@ export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): UseG
       setStatus('error')
       return
     }
-    if (permission === 'denied') {
-      setStatus('denied')
-      return
-    }
 
+    // Always attempt the real call rather than trusting the Permissions API's
+    // cached 'denied' state to skip it: on Safari/WebKit that state is known to
+    // go stale and its 'change' event often doesn't fire after the user
+    // re-grants access from Settings, which would otherwise permanently block
+    // recovery. A genuinely-denied call fails instantly and harmlessly anyway.
     setStatus('locating')
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -107,7 +108,7 @@ export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): UseG
       },
       optionsRef.current
     )
-  }, [permission])
+  }, [])
 
   return { coords, status, permission, request }
 }
