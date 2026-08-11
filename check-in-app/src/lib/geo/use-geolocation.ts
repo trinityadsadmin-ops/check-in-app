@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 export type GeoCoords = {
   lat: number
@@ -14,13 +14,6 @@ export type GeoStatus = 'idle' | 'locating' | 'ok' | 'denied' | 'error'
 export type UseGeolocationResult = {
   coords: GeoCoords | null
   status: GeoStatus
-  /**
-   * Known permission state from the Permissions API, checked without prompting.
-   * 'unsupported' means the browser can't report this ahead of time (e.g. iOS
-   * Safari) — status only becomes 'denied' there once `request()` is actually
-   * rejected.
-   */
-  permission: 'unknown' | 'granted' | 'prompt' | 'denied' | 'unsupported'
   /** Requests a single fresh position fix. */
   request: () => void
 }
@@ -33,54 +26,20 @@ const DEFAULT_OPTIONS: PositionOptions = {
 
 /**
  * Thin wrapper over `navigator.geolocation.getCurrentPosition`. Returns the last
- * fix plus a coarse status the check-in sheet can render directly. Also checks
- * the Permissions API (where supported) so callers can detect a denied
- * permission — and react to it being re-granted — without firing a doomed
- * browser prompt.
+ * fix plus a coarse status the check-in sheet can render directly.
+ *
+ * Deliberately does not consult the Permissions API to pre-empt a "denied"
+ * state: on Safari/WebKit that cached state is known to go stale and its
+ * `change` event often doesn't fire after the user re-grants access from
+ * Settings, which would leave callers permanently stuck showing "denied" even
+ * after permission is genuinely restored. `status` always reflects the real
+ * outcome of the most recent `request()` call instead.
  */
 export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): UseGeolocationResult {
   const [coords, setCoords] = useState<GeoCoords | null>(null)
   const [status, setStatus] = useState<GeoStatus>('idle')
-  const [permission, setPermission] = useState<UseGeolocationResult['permission']>('unknown')
   const optionsRef = useRef(options)
   optionsRef.current = options
-
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || !navigator.permissions?.query) {
-      setPermission('unsupported')
-      return
-    }
-    let cancelled = false
-    let statusRef: PermissionStatus | null = null
-
-    const onChange = () => {
-      if (!statusRef) return
-      setPermission(statusRef.state)
-      if (statusRef.state === 'denied') {
-        setStatus('denied')
-      }
-    }
-
-    navigator.permissions
-      .query({ name: 'geolocation' })
-      .then((result) => {
-        if (cancelled) return
-        statusRef = result
-        setPermission(result.state)
-        if (result.state === 'denied') {
-          setStatus('denied')
-        }
-        result.addEventListener('change', onChange)
-      })
-      .catch(() => {
-        if (!cancelled) setPermission('unsupported')
-      })
-
-    return () => {
-      cancelled = true
-      statusRef?.removeEventListener('change', onChange)
-    }
-  }, [])
 
   const request = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -88,11 +47,6 @@ export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): UseG
       return
     }
 
-    // Always attempt the real call rather than trusting the Permissions API's
-    // cached 'denied' state to skip it: on Safari/WebKit that state is known to
-    // go stale and its 'change' event often doesn't fire after the user
-    // re-grants access from Settings, which would otherwise permanently block
-    // recovery. A genuinely-denied call fails instantly and harmlessly anyway.
     setStatus('locating')
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -110,5 +64,5 @@ export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): UseG
     )
   }, [])
 
-  return { coords, status, permission, request }
+  return { coords, status, request }
 }

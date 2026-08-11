@@ -45,7 +45,10 @@ export function HomeScreen() {
 
   // Passive GPS fix (no prompt beyond the browser's own permission ask) to pick
   // which assigned site is nearest, rather than always showing the first one.
-  const { coords, permission: geoPermission, request } = useGeolocation()
+  // Uses `status` (the real outcome of this mount's request), not `permission`
+  // (the Permissions API's cached state) — Safari/WebKit can leave that stale
+  // after the user re-grants access, which would keep the denied banner stuck.
+  const { coords, status: geoStatus, request } = useGeolocation()
   useEffect(() => {
     request()
   }, [request])
@@ -148,7 +151,7 @@ export function HomeScreen() {
       {/* location-denied banner: check-in/out needs GPS, so surface this before the
           user hits a dead end in the sheet. Opens the sheet, which shows the full
           "how to re-enable location" instructions + retry. */}
-      {geoPermission === 'denied' ? (
+      {geoStatus === 'denied' ? (
         <button
           type="button"
           onClick={isCheckedIn ? openCheckOut : openCheckIn}
