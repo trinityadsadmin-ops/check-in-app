@@ -48,19 +48,19 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 export const getGetFrontendProfileUrl = () => {
 
 
-
+  
 
   return `/api/frontend/profile`
 }
 
 export const getFrontendProfile = async ( options?: RequestInit): Promise<FrontendProfileResponse> => {
-
+  
   return customFetch<FrontendProfileResponse>(getGetFrontendProfileUrl(),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 );}
 
@@ -70,7 +70,7 @@ export const getGetFrontendProfileQueryKey = () => {
     return [`/api/frontend/profile`] as const;
     }
 
-
+    
 export const getGetFrontendProfileQueryOptions = <TData = Awaited<ReturnType<typeof getFrontendProfile>>, TError = ErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFrontendProfile>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
@@ -78,13 +78,13 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getGetFrontendProfileQueryKey();
 
-
+  
 
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getFrontendProfile>>> = ({ signal }) => getFrontendProfile({ signal, ...requestOptions });
 
+      
 
-
-
+      
 
    return  { queryKey, queryFn,   staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFrontendProfile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
@@ -120,7 +120,7 @@ export function useGetFrontendProfile<TData = Awaited<ReturnType<typeof getFront
 
 export function useGetFrontendProfile<TData = Awaited<ReturnType<typeof getFrontendProfile>>, TError = ErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFrontendProfile>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
+ , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetFrontendProfileQueryOptions(options)
@@ -137,15 +137,15 @@ export function useGetFrontendProfile<TData = Awaited<ReturnType<typeof getFront
 export const getCreateCheckInUrl = () => {
 
 
-
+  
 
   return `/api/frontend/check-ins`
 }
 
 export const createCheckIn = async (createCheckInRequest: CreateCheckInRequest, options?: RequestInit): Promise<CreateCheckInResponse> => {
-
+  
   return customFetch<CreateCheckInResponse>(getCreateCheckInUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -168,7 +168,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCheckIn>>, {data: CreateCheckInRequest}> = (props) => {
@@ -177,7 +177,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  createCheckIn(data,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -203,7 +203,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-
+    
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -215,13 +215,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 }
 
 export const listFrontendAttendance = async (params?: ListFrontendAttendanceParams, options?: RequestInit): Promise<ListFrontendAttendanceResponse> => {
-
+  
   return customFetch<ListFrontendAttendanceResponse>(getListFrontendAttendanceUrl(params),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 );}
 
@@ -231,7 +231,7 @@ export const getListFrontendAttendanceQueryKey = (params?: ListFrontendAttendanc
     return [`/api/frontend/attendance`, ...(params ? [params]: [])] as const;
     }
 
-
+    
 export const getListFrontendAttendanceQueryOptions = <TData = Awaited<ReturnType<typeof listFrontendAttendance>>, TError = ErrorResponse>(params?: ListFrontendAttendanceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFrontendAttendance>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
@@ -239,13 +239,13 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListFrontendAttendanceQueryKey(params);
 
-
+  
 
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listFrontendAttendance>>> = ({ signal }) => listFrontendAttendance(params, { signal, ...requestOptions });
 
+      
 
-
-
+      
 
    return  { queryKey, queryFn,   staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFrontendAttendance>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
@@ -281,7 +281,7 @@ export function useListFrontendAttendance<TData = Awaited<ReturnType<typeof list
 
 export function useListFrontendAttendance<TData = Awaited<ReturnType<typeof listFrontendAttendance>>, TError = ErrorResponse>(
  params?: ListFrontendAttendanceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFrontendAttendance>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
+ , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListFrontendAttendanceQueryOptions(params,options)
@@ -299,7 +299,7 @@ export const getListFrontendPayslipsUrl = (params?: ListFrontendPayslipsParams,)
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-
+    
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -311,13 +311,13 @@ export const getListFrontendPayslipsUrl = (params?: ListFrontendPayslipsParams,)
 }
 
 export const listFrontendPayslips = async (params?: ListFrontendPayslipsParams, options?: RequestInit): Promise<ListFrontendPayslipsResponse> => {
-
+  
   return customFetch<ListFrontendPayslipsResponse>(getListFrontendPayslipsUrl(params),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 );}
 
@@ -327,7 +327,7 @@ export const getListFrontendPayslipsQueryKey = (params?: ListFrontendPayslipsPar
     return [`/api/frontend/payslips`, ...(params ? [params]: [])] as const;
     }
 
-
+    
 export const getListFrontendPayslipsQueryOptions = <TData = Awaited<ReturnType<typeof listFrontendPayslips>>, TError = ErrorResponse>(params?: ListFrontendPayslipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFrontendPayslips>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
@@ -335,13 +335,13 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListFrontendPayslipsQueryKey(params);
 
-
+  
 
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listFrontendPayslips>>> = ({ signal }) => listFrontendPayslips(params, { signal, ...requestOptions });
 
+      
 
-
-
+      
 
    return  { queryKey, queryFn,   staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFrontendPayslips>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
@@ -377,7 +377,7 @@ export function useListFrontendPayslips<TData = Awaited<ReturnType<typeof listFr
 
 export function useListFrontendPayslips<TData = Awaited<ReturnType<typeof listFrontendPayslips>>, TError = ErrorResponse>(
  params?: ListFrontendPayslipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFrontendPayslips>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
+ , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListFrontendPayslipsQueryOptions(params,options)
@@ -395,7 +395,7 @@ export const getListSiteAreaInspectionsUrl = (params?: ListSiteAreaInspectionsPa
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-
+    
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -407,13 +407,13 @@ export const getListSiteAreaInspectionsUrl = (params?: ListSiteAreaInspectionsPa
 }
 
 export const listSiteAreaInspections = async (params?: ListSiteAreaInspectionsParams, options?: RequestInit): Promise<ListAreaInspectionsResponse> => {
-
+  
   return customFetch<ListAreaInspectionsResponse>(getListSiteAreaInspectionsUrl(params),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 );}
 
@@ -423,7 +423,7 @@ export const getListSiteAreaInspectionsQueryKey = (params?: ListSiteAreaInspecti
     return [`/api/frontend/area-inspections`, ...(params ? [params]: [])] as const;
     }
 
-
+    
 export const getListSiteAreaInspectionsQueryOptions = <TData = Awaited<ReturnType<typeof listSiteAreaInspections>>, TError = ErrorResponse>(params?: ListSiteAreaInspectionsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSiteAreaInspections>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
@@ -431,13 +431,13 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListSiteAreaInspectionsQueryKey(params);
 
-
+  
 
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listSiteAreaInspections>>> = ({ signal }) => listSiteAreaInspections(params, { signal, ...requestOptions });
 
+      
 
-
-
+      
 
    return  { queryKey, queryFn,   staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSiteAreaInspections>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
@@ -473,7 +473,7 @@ export function useListSiteAreaInspections<TData = Awaited<ReturnType<typeof lis
 
 export function useListSiteAreaInspections<TData = Awaited<ReturnType<typeof listSiteAreaInspections>>, TError = ErrorResponse>(
  params?: ListSiteAreaInspectionsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSiteAreaInspections>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
+ , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListSiteAreaInspectionsQueryOptions(params,options)
@@ -490,19 +490,19 @@ export function useListSiteAreaInspections<TData = Awaited<ReturnType<typeof lis
 export const getGetFrontendWorkAreasUrl = () => {
 
 
-
+  
 
   return `/api/frontend/work-areas`
 }
 
 export const getFrontendWorkAreas = async ( options?: RequestInit): Promise<FrontendWorkAreasResponse> => {
-
+  
   return customFetch<FrontendWorkAreasResponse>(getGetFrontendWorkAreasUrl(),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 );}
 
@@ -512,7 +512,7 @@ export const getGetFrontendWorkAreasQueryKey = () => {
     return [`/api/frontend/work-areas`] as const;
     }
 
-
+    
 export const getGetFrontendWorkAreasQueryOptions = <TData = Awaited<ReturnType<typeof getFrontendWorkAreas>>, TError = ErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFrontendWorkAreas>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
@@ -520,13 +520,13 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getGetFrontendWorkAreasQueryKey();
 
-
+  
 
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getFrontendWorkAreas>>> = ({ signal }) => getFrontendWorkAreas({ signal, ...requestOptions });
 
+      
 
-
-
+      
 
    return  { queryKey, queryFn,   staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFrontendWorkAreas>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
@@ -562,7 +562,7 @@ export function useGetFrontendWorkAreas<TData = Awaited<ReturnType<typeof getFro
 
 export function useGetFrontendWorkAreas<TData = Awaited<ReturnType<typeof getFrontendWorkAreas>>, TError = ErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFrontendWorkAreas>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
+ , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetFrontendWorkAreasQueryOptions(options)

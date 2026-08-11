@@ -70,7 +70,9 @@ export function HomeScreen() {
 
   // Site label: the assigned work location nearest the current GPS fix (falls
   // back to the first assignment while locating/denied), then the most recent
-  // work-area id from history, else a placeholder.
+  // work-area id from history. If there's no active assignment at all but the
+  // backend confirms one exists and was disabled (e.g. its site was archived),
+  // say so explicitly rather than showing a blank placeholder.
   const today = findTodayDay(days)
   const assignments = workAreasQuery.data?.workAreas ?? []
   const nearestAssignment = coords
@@ -79,7 +81,7 @@ export function HomeScreen() {
   const siteShort =
     nearestAssignment?.workLocation.name ??
     today?.checkIn?.workAreaSnapshot?.workLocationId ??
-    t.site_label
+    (workAreasQuery.data?.hasDisabledAssignment ? t.site_disabled : t.site_label)
 
   // status pill tokens
   const statusText =

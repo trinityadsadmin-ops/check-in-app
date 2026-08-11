@@ -56,7 +56,9 @@ export const FrontendWorkAreaAssignmentSchema = z
 
 export const FrontendWorkAreasResponseSchema = z
   .object({
-    workAreas: z.array(FrontendWorkAreaAssignmentSchema)
+    workAreas: z.array(FrontendWorkAreaAssignmentSchema),
+    /** True when the caller has no active assignment, but has had one that is now disabled (e.g. its site was archived). */
+    hasDisabledAssignment: z.boolean()
   })
   .openapi('FrontendWorkAreasResponse')
 

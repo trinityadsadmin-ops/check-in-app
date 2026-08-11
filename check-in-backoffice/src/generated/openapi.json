@@ -828,10 +828,14 @@
             "items": {
               "$ref": "#/components/schemas/FrontendWorkAreaAssignment"
             }
+          },
+          "hasDisabledAssignment": {
+            "type": "boolean"
           }
         },
         "required": [
-          "workAreas"
+          "workAreas",
+          "hasDisabledAssignment"
         ]
       },
       "FrontendWorkAreaAssignment": {

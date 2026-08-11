@@ -9,4 +9,5 @@ import type { FrontendWorkAreaAssignment } from './frontendWorkAreaAssignment';
 
 export interface FrontendWorkAreasResponse {
   workAreas: FrontendWorkAreaAssignment[];
+  hasDisabledAssignment: boolean;
 }

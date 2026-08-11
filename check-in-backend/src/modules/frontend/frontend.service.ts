@@ -51,7 +51,7 @@ export async function getOwnWorkAreas(userId: string) {
   const { workAreas } = await getUserWorkAreas(userId)
 
   if (workAreas.length === 0) {
-    return { workAreas: [] }
+    return { workAreas: [], hasDisabledAssignment: await hasAnyWorkAreaAssignment(userId) }
   }
 
   const supabaseAdmin = requireSupabaseAdmin()
@@ -88,6 +88,27 @@ export async function getOwnWorkAreas(userId: string) {
       const workLocation = workLocationsById.get(workArea.workLocationId)
 
       return workLocation ? [{ workArea, workLocation }] : []
-    })
+    }),
+    hasDisabledAssignment: false
   }
+}
+
+/**
+ * Whether the user has ever had a work-area assignment (active or not) — used
+ * to tell "your site was disabled" apart from "you were never assigned one"
+ * when the active list comes back empty.
+ */
+async function hasAnyWorkAreaAssignment(userId: string): Promise<boolean> {
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { data, error } = await supabaseAdmin
+    .from('employee_work_areas')
+    .select('id')
+    .eq('user_id', userId)
+    .limit(1)
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  return (data ?? []).length > 0
 }

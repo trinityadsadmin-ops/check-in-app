@@ -44,15 +44,15 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 export const getSignUpUrl = () => {
 
 
-
+  
 
   return `/api/auth/sign-up`
 }
 
 export const signUp = async (signUpRequest: SignUpRequest, options?: RequestInit): Promise<AuthResponse> => {
-
+  
   return customFetch<AuthResponse>(getSignUpUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -75,7 +75,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof signUp>>, {data: SignUpRequest}> = (props) => {
@@ -84,7 +84,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  signUp(data,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -109,15 +109,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export const getSignInUrl = () => {
 
 
-
+  
 
   return `/api/auth/sign-in`
 }
 
 export const signIn = async (signInRequest: SignInRequest, options?: RequestInit): Promise<AuthResponse> => {
-
+  
   return customFetch<AuthResponse>(getSignInUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -140,7 +140,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof signIn>>, {data: SignInRequest}> = (props) => {
@@ -149,7 +149,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  signIn(data,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -174,15 +174,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export const getRefreshAuthSessionUrl = () => {
 
 
-
+  
 
   return `/api/auth/refresh`
 }
 
 export const refreshAuthSession = async (refreshTokenRequest: RefreshTokenRequest, options?: RequestInit): Promise<AuthResponse> => {
-
+  
   return customFetch<AuthResponse>(getRefreshAuthSessionUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -205,7 +205,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshAuthSession>>, {data: RefreshTokenRequest}> = (props) => {
@@ -214,7 +214,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  refreshAuthSession(data,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -239,19 +239,19 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export const getGetCurrentUserUrl = () => {
 
 
-
+  
 
   return `/api/auth/me`
 }
 
 export const getCurrentUser = async ( options?: RequestInit): Promise<CurrentUserResponse> => {
-
+  
   return customFetch<CurrentUserResponse>(getGetCurrentUserUrl(),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 );}
 
@@ -261,7 +261,7 @@ export const getGetCurrentUserQueryKey = () => {
     return [`/api/auth/me`] as const;
     }
 
-
+    
 export const getGetCurrentUserQueryOptions = <TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
@@ -269,13 +269,13 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getGetCurrentUserQueryKey();
 
-
+  
 
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentUser>>> = ({ signal }) => getCurrentUser({ signal, ...requestOptions });
 
+      
 
-
-
+      
 
    return  { queryKey, queryFn,   staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
@@ -311,7 +311,7 @@ export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUs
 
 export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
+ , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetCurrentUserQueryOptions(options)
@@ -328,19 +328,19 @@ export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUs
 export const getSignOutUrl = () => {
 
 
-
+  
 
   return `/api/auth/sign-out`
 }
 
 export const signOut = async ( options?: RequestInit): Promise<SignOutResponse> => {
-
+  
   return customFetch<SignOutResponse>(getSignOutUrl(),
-  {
+  {      
     ...options,
     method: 'POST'
-
-
+    
+    
   }
 );}
 
@@ -358,22 +358,22 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof signOut>>, void> = () => {
-
+          
 
           return  signOut(requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
 
     export type SignOutMutationResult = NonNullable<Awaited<ReturnType<typeof signOut>>>
-
+    
     export type SignOutMutationError = unknown
 
     export const useSignOut = <TError = unknown,
@@ -389,3 +389,4 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
       return useMutation(mutationOptions , queryClient);
     }
+    
