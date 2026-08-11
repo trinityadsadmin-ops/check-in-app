@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type GeoCoords = {
   lat: number
@@ -63,6 +63,27 @@ export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): UseG
       optionsRef.current
     )
   }, [])
+
+  // Fixing a denied/errored permission on iOS means leaving the installed PWA
+  // to change it in Settings, then coming back — nothing else re-triggers a
+  // check. Retry automatically once the app regains focus, but only while
+  // we're actually stuck, so this doesn't re-fetch on every app switch.
+  useEffect(() => {
+    if (typeof document === 'undefined' || (status !== 'denied' && status !== 'error')) {
+      return
+    }
+    const onResume = () => {
+      if (document.visibilityState === 'visible') {
+        request()
+      }
+    }
+    document.addEventListener('visibilitychange', onResume)
+    window.addEventListener('focus', onResume)
+    return () => {
+      document.removeEventListener('visibilitychange', onResume)
+      window.removeEventListener('focus', onResume)
+    }
+  }, [status, request])
 
   return { coords, status, request }
 }
