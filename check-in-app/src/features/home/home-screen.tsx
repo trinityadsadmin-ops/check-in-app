@@ -1,14 +1,17 @@
 'use client'
 
-import { Camera, ChevronRight, FileText, LogIn, LogOut } from 'lucide-react'
+import { Camera, ChevronRight, FileText, LogIn, LogOut, MapPinOff } from 'lucide-react'
 import type { Route } from 'next'
 import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 import {
   useGetFrontendProfile,
   useGetFrontendWorkAreas,
   useListFrontendAttendance
 } from '@/generated/api/frontend/frontend'
 import { useAuth } from '@/lib/auth/auth-provider'
+import { closestByCentroid } from '@/lib/geo/distance'
+import { useGeolocation } from '@/lib/geo/use-geolocation'
 import { useI18n } from '@/lib/i18n/i18n-provider'
 import { useShell } from '@/lib/shell/shell-provider'
 import {
@@ -40,6 +43,13 @@ export function HomeScreen() {
   const attendanceQuery = useListFrontendAttendance({ perPage: 30 })
   const workAreasQuery = useGetFrontendWorkAreas()
 
+  // Passive GPS fix (no prompt beyond the browser's own permission ask) to pick
+  // which assigned site is nearest, rather than always showing the first one.
+  const { coords, permission: geoPermission, request } = useGeolocation()
+  useEffect(() => {
+    request()
+  }, [request])
+
   const profileUser = profileQuery.data?.user ?? user
   const days = attendanceQuery.data?.attendanceDays ?? []
   const sorted = sortDaysDesc(days)
@@ -55,11 +65,16 @@ export function HomeScreen() {
   const empRole = profileUser?.role?.name ?? t.tab_home
   const initials = initialsOf(profileUser?.fullName)
 
-  // Site label: the first assigned work location's name (staff work-areas endpoint),
-  // falling back to the most recent work-area id from history, else a placeholder.
+  // Site label: the assigned work location nearest the current GPS fix (falls
+  // back to the first assignment while locating/denied), then the most recent
+  // work-area id from history, else a placeholder.
   const today = findTodayDay(days)
+  const assignments = workAreasQuery.data?.workAreas ?? []
+  const nearestAssignment = coords
+    ? (closestByCentroid(coords, assignments, (a) => a.workArea.areaNodes) ?? assignments[0])
+    : assignments[0]
   const siteShort =
-    workAreasQuery.data?.workAreas[0]?.workLocation.name ??
+    nearestAssignment?.workLocation.name ??
     today?.checkIn?.workAreaSnapshot?.workLocationId ??
     t.site_label
 
@@ -129,6 +144,31 @@ export function HomeScreen() {
           </div>
         </div>
       </div>
+
+      {/* location-denied banner: check-in/out needs GPS, so surface this before the
+          user hits a dead end in the sheet. Opens the sheet, which shows the full
+          "how to re-enable location" instructions + retry. */}
+      {geoPermission === 'denied' ? (
+        <button
+          type="button"
+          onClick={isCheckedIn ? openCheckOut : openCheckIn}
+          className="flex items-center"
+          style={{
+            gap: 8,
+            border: '1px solid var(--trinity-danger-bd)',
+            background: 'var(--trinity-danger-bg)',
+            borderRadius: 8,
+            padding: '10px 12px',
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: 'var(--trinity-danger)',
+            textAlign: 'left'
+          }}
+        >
+          <MapPinOff size={16} style={{ flex: 'none' }} />
+          {t.geo_denied_banner}
+        </button>
+      ) : null}
 
       {/* check-in status card */}
       <div

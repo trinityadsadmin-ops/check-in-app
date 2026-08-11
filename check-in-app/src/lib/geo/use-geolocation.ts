@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type GeoCoords = {
   lat: number
@@ -14,7 +14,14 @@ export type GeoStatus = 'idle' | 'locating' | 'ok' | 'denied' | 'error'
 export type UseGeolocationResult = {
   coords: GeoCoords | null
   status: GeoStatus
-  /** Requests a single fresh position fix. */
+  /**
+   * Known permission state from the Permissions API, checked without prompting.
+   * 'unsupported' means the browser can't report this ahead of time (e.g. iOS
+   * Safari) — status only becomes 'denied' there once `request()` is actually
+   * rejected.
+   */
+  permission: 'unknown' | 'granted' | 'prompt' | 'denied' | 'unsupported'
+  /** Requests a single fresh position fix. No-ops (sets status 'denied') if permission is already known-denied. */
   request: () => void
 }
 
@@ -26,17 +33,62 @@ const DEFAULT_OPTIONS: PositionOptions = {
 
 /**
  * Thin wrapper over `navigator.geolocation.getCurrentPosition`. Returns the last
- * fix plus a coarse status the check-in sheet can render directly.
+ * fix plus a coarse status the check-in sheet can render directly. Also checks
+ * the Permissions API (where supported) so callers can detect a denied
+ * permission — and react to it being re-granted — without firing a doomed
+ * browser prompt.
  */
 export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): UseGeolocationResult {
   const [coords, setCoords] = useState<GeoCoords | null>(null)
   const [status, setStatus] = useState<GeoStatus>('idle')
+  const [permission, setPermission] = useState<UseGeolocationResult['permission']>('unknown')
   const optionsRef = useRef(options)
   optionsRef.current = options
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query) {
+      setPermission('unsupported')
+      return
+    }
+    let cancelled = false
+    let statusRef: PermissionStatus | null = null
+
+    const onChange = () => {
+      if (!statusRef) return
+      setPermission(statusRef.state)
+      if (statusRef.state === 'denied') {
+        setStatus('denied')
+      }
+    }
+
+    navigator.permissions
+      .query({ name: 'geolocation' })
+      .then((result) => {
+        if (cancelled) return
+        statusRef = result
+        setPermission(result.state)
+        if (result.state === 'denied') {
+          setStatus('denied')
+        }
+        result.addEventListener('change', onChange)
+      })
+      .catch(() => {
+        if (!cancelled) setPermission('unsupported')
+      })
+
+    return () => {
+      cancelled = true
+      statusRef?.removeEventListener('change', onChange)
+    }
+  }, [])
 
   const request = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setStatus('error')
+      return
+    }
+    if (permission === 'denied') {
+      setStatus('denied')
       return
     }
 
@@ -55,7 +107,7 @@ export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): UseG
       },
       optionsRef.current
     )
-  }, [])
+  }, [permission])
 
-  return { coords, status, request }
+  return { coords, status, permission, request }
 }

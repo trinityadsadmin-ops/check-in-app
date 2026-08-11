@@ -54,6 +54,16 @@ export const en = {
   empty_history: 'No attendance records yet',
   locating: 'Locating…',
   geo_denied: 'Location access denied',
+  geo_denied_help_title: 'Enable location to check in',
+  geo_denied_help_body: 'Trinity Staff needs your location to verify you are on site.',
+  geo_denied_steps_ios:
+    'Settings → Privacy & Security → Location Services → Safari Websites → set to “While Using the App”, then reload this page.',
+  geo_denied_steps_android:
+    'Tap the lock/site-info icon in the address bar → Permissions → Location → Allow, then reload this page.',
+  geo_denied_steps_desktop:
+    'Click the lock/site-info icon in your browser’s address bar → Location → Allow, then reload this page.',
+  geo_retry: 'Try again',
+  geo_denied_banner: 'Location is turned off — tap to fix',
   no_work_area: 'No work area on file',
   outside_area: 'You are outside your work area',
   review_pending: 'Pending review',
@@ -209,6 +219,16 @@ export const th: Dict = {
   empty_history: 'ยังไม่มีประวัติการลงเวลา',
   locating: 'กำลังระบุตำแหน่ง…',
   geo_denied: 'ไม่ได้รับอนุญาตให้เข้าถึงตำแหน่ง',
+  geo_denied_help_title: 'เปิดสิทธิ์เข้าถึงตำแหน่งเพื่อลงเวลา',
+  geo_denied_help_body: 'แอป Trinity Staff ต้องใช้ตำแหน่งของคุณเพื่อยืนยันว่าคุณอยู่ในไซต์งาน',
+  geo_denied_steps_ios:
+    'ตั้งค่า → ความเป็นส่วนตัวและความปลอดภัย → บริการหาตำแหน่ง → Safari Websites → เลือก “While Using the App” จากนั้นรีเฟรชหน้านี้',
+  geo_denied_steps_android:
+    'แตะไอคอนแม่กุญแจ/ข้อมูลเว็บไซต์ที่แถบที่อยู่ → สิทธิ์การเข้าถึง → ตำแหน่ง → อนุญาต จากนั้นรีเฟรชหน้านี้',
+  geo_denied_steps_desktop:
+    'คลิกไอคอนแม่กุญแจ/ข้อมูลเว็บไซต์ที่แถบที่อยู่เบราว์เซอร์ → ตำแหน่ง → อนุญาต จากนั้นรีเฟรชหน้านี้',
+  geo_retry: 'ลองอีกครั้ง',
+  geo_denied_banner: 'ปิดการเข้าถึงตำแหน่งอยู่ — แตะเพื่อแก้ไข',
   no_work_area: 'ยังไม่มีพื้นที่ทำงานในระบบ',
   outside_area: 'คุณอยู่นอกพื้นที่ทำงาน',
   review_pending: 'รอตรวจสอบ',

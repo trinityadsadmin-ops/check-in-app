@@ -6,12 +6,14 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import GeofenceMap from '@/components/map/geofence-map'
 import type { LatLng } from '@/components/map/geofence-map'
+import { LocationPermissionHelp } from '@/components/shared/location-permission-help'
 import { useCheckIn, useCheckOut } from '@/generated/api/mobile/mobile'
 import {
   useGetFrontendWorkAreas,
   useListFrontendAttendance
 } from '@/generated/api/frontend/frontend'
 import { ApiError } from '@/lib/api/fetch-client'
+import { closestByCentroid } from '@/lib/geo/distance'
 import { useGeolocation } from '@/lib/geo/use-geolocation'
 import { useI18n } from '@/lib/i18n/i18n-provider'
 import { useShell } from '@/lib/shell/shell-provider'
@@ -57,7 +59,12 @@ export function CheckInSheet() {
           pointInPolygon(position, area.areaNodes.map((node) => ({ lat: node.lat, lng: node.lng })))
         )
       : null
-    const nodes = (matchedArea ?? assignments[0]).workArea.areaNodes
+    // Outside every assigned geofence (or no fix yet): show the nearest
+    // assignment by centroid distance rather than an arbitrary first one.
+    const fallbackArea = position
+      ? (closestByCentroid(position, assignments, (a) => a.workArea.areaNodes) ?? assignments[0])
+      : assignments[0]
+    const nodes = (matchedArea ?? fallbackArea).workArea.areaNodes
 
     if (nodes && nodes.length > 0) {
       const polygon = nodes.map((n) => ({ lat: n.lat, lng: n.lng }))
@@ -254,6 +261,9 @@ export function CheckInSheet() {
             {weak ? t.gps_weak : t.gps_strong}
           </div>
         </div>
+
+        {/* denied-permission help: explain why location is needed and how to fix it */}
+        {status === 'denied' ? <LocationPermissionHelp onRetry={request} /> : null}
 
         {/* weak GPS warning */}
         {weak ? (
