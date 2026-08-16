@@ -28,9 +28,11 @@ export const ConfirmAttendanceRequestSchema = z
     lat: z.number().min(-90).max(90).optional(),
     lng: z.number().min(-180).max(180).optional(),
     capturedAt: z.string().datetime().optional(),
-    /** Manual check-in/out: skips geofence enforcement, requires manualReason. */
+    /** Manual check-in/out: skips geofence enforcement, requires manualReason
+     *  and an explicit workAreaId (one of the employee's accessible sites). */
     isManual: z.boolean().optional(),
-    manualReason: z.string().trim().min(1).max(500).optional()
+    manualReason: z.string().trim().min(1).max(500).optional(),
+    workAreaId: z.string().uuid().optional()
   })
   .openapi('ConfirmAttendanceRequest')
 

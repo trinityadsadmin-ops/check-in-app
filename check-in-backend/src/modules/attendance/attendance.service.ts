@@ -3,7 +3,10 @@ import { env } from '../../config/env.js'
 import { badRequest, forbidden, notFound } from '../../core/errors/http-error.js'
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { writeAuditLog, writeEventLog } from '../logs/logs.service.js'
-import { findActiveWorkAreaForPoint } from '../work-locations/work-location-assignment.service.js'
+import {
+  findActiveWorkAreaForPoint,
+  listActiveWorkAreasForUser
+} from '../work-locations/work-location-assignment.service.js'
 import { getBangkokDate, type LatLngNode } from './geo.js'
 import type {
   AttendanceEventType,
@@ -370,16 +373,32 @@ export async function confirmAttendance(input: {
     if (!input.payload.manualReason?.trim()) {
       throw badRequest('manualReason is required for manual attendance')
     }
+    if (!input.payload.workAreaId) {
+      throw badRequest('workAreaId is required for manual attendance')
+    }
   } else if (input.payload.lat === undefined || input.payload.lng === undefined) {
     throw badRequest('lat and lng are required')
   }
 
   const hasPoint = input.payload.lat !== undefined && input.payload.lng !== undefined
   const point = hasPoint ? { lat: input.payload.lat as number, lng: input.payload.lng as number } : null
-  // Manual punches skip geofence enforcement, but still resolve a work area
-  // best-effort when a fix was sent, so the snapshot stays populated when
-  // possible. Non-manual punches keep the hard rejection unchanged.
-  const workArea = point ? await findActiveWorkAreaForPoint(input.userId, point) : null
+
+  // Manual punches skip geofence enforcement, but still require an explicit,
+  // employee-selected site — resolved against their current accessible
+  // (active, non-archived) assignments so a manual entry can't be attributed
+  // to a site the employee no longer has access to. Non-manual punches keep
+  // the point-based geofence match and hard rejection unchanged.
+  const workArea = isManual
+    ? ((await listActiveWorkAreasForUser(input.userId)).find(
+        (area) => area.id === input.payload.workAreaId
+      ) ?? null)
+    : point
+      ? await findActiveWorkAreaForPoint(input.userId, point)
+      : null
+
+  if (isManual && !workArea) {
+    throw forbidden('Selected work site is not accessible')
+  }
 
   if (!isManual && !workArea) {
     await writeEventLog({
@@ -490,7 +509,13 @@ export async function confirmAttendance(input: {
     eventType: input.eventType === 'CHECK_IN' ? 'attendance.check_in_created' : 'attendance.check_out_created',
     resourceType: 'attendance_event',
     resourceId: event.id,
-    metadata: { workDate, point, isManual, manualReason: isManual ? input.payload.manualReason : null },
+    metadata: {
+      workDate,
+      point,
+      isManual,
+      manualReason: isManual ? input.payload.manualReason : null,
+      workAreaId: isManual ? workArea?.id : null
+    },
     c: input.c
   })
 

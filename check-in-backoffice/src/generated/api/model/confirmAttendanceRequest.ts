@@ -25,4 +25,5 @@ export interface ConfirmAttendanceRequest {
    * @maxLength 500
    */
   manualReason?: string;
+  workAreaId?: string;
 }

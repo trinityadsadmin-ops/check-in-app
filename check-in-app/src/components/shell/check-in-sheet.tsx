@@ -37,6 +37,7 @@ export function CheckInSheet() {
   const { coords, status, request } = useGeolocation()
   const queryClient = useQueryClient()
   const [reason, setReason] = useState('')
+  const [siteId, setSiteId] = useState('')
 
   const isOpen = sheet === 'in' || sheet === 'out'
 
@@ -111,8 +112,14 @@ export function CheckInSheet() {
       setDragY(0)
       setIsDragging(false)
       setReason('')
+      setSiteId('')
     }
   }, [isOpen])
+
+  // Sites the employee is currently, actively assigned to — the only options
+  // selectable for a manual entry (never derived from history or the map's
+  // fallback logic, which may include stale/inactive assignments).
+  const siteOptions = assignedQuery.data?.workAreas ?? []
 
   const onHandlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     dragStateRef.current = { dragging: true, startY: e.clientY, deltaY: 0 }
@@ -174,7 +181,7 @@ export function CheckInSheet() {
   })
 
   const canConfirm = manual
-    ? !submitting && reason.trim().length > 0
+    ? !submitting && reason.trim().length > 0 && siteId.length > 0
     : !!position && !submitting && status !== 'locating'
 
   // Confirm location → submit the check-in/out punch directly (no photo).
@@ -188,12 +195,16 @@ export function CheckInSheet() {
       toast.error(t.manual_reason_required)
       return
     }
+    if (manual && !siteId) {
+      toast.error(t.manual_site_required)
+      return
+    }
     setSubmitting(true)
     try {
       const body = {
         ...(position ? { lat: position.lat, lng: position.lng } : {}),
         capturedAt: new Date().toISOString(),
-        ...(manual ? { isManual: true, manualReason: reason.trim() } : {})
+        ...(manual ? { isManual: true, manualReason: reason.trim(), workAreaId: siteId } : {})
       }
       if (sheet === 'in') {
         await checkInMutation.mutateAsync({ data: body })
@@ -208,7 +219,7 @@ export function CheckInSheet() {
       closeSheet()
     } catch (error) {
       if (error instanceof ApiError && error.status === 403) {
-        toast.error(t.outside_area)
+        toast.error(manual ? t.manual_site_not_accessible : t.outside_area)
       } else {
         const message = error instanceof Error ? error.message : t.geo_denied
         toast.error(message)
@@ -373,6 +384,56 @@ export function CheckInSheet() {
             </span>
           </div>
         </div>
+
+        {/* manual site: required — limited to the employee's currently accessible sites */}
+        {manual ? (
+          <div style={{ marginTop: 13 }}>
+            <label
+              htmlFor="manual-site"
+              style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--trinity-mfg)' }}
+            >
+              {t.manual_site_label}
+            </label>
+            {siteOptions.length > 0 ? (
+              <select
+                id="manual-site"
+                value={siteId}
+                onChange={(e) => setSiteId(e.target.value)}
+                style={{
+                  marginTop: 6,
+                  width: '100%',
+                  borderRadius: 8,
+                  border: '1px solid var(--trinity-border)',
+                  padding: '10px 12px',
+                  fontSize: 13.5,
+                  fontFamily: 'inherit',
+                  background: '#fff'
+                }}
+              >
+                <option value="">{t.manual_site_placeholder}</option>
+                {siteOptions.map(({ workArea: area, workLocation }) => (
+                  <option key={area.id} value={area.id}>
+                    {workLocation.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div
+                style={{
+                  marginTop: 6,
+                  border: '1px solid var(--trinity-warn-bg)',
+                  background: 'var(--trinity-warn-bg)',
+                  borderRadius: 8,
+                  padding: '9px 12px',
+                  fontSize: 12.5,
+                  color: '#6b4d00'
+                }}
+              >
+                {t.manual_site_none}
+              </div>
+            )}
+          </div>
+        ) : null}
 
         {/* manual reason: required when checking in/out without geofence enforcement */}
         {manual ? (
