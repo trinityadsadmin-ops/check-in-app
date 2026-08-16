@@ -7,8 +7,11 @@
  */
 import type { LatLngNode } from './latLngNode';
 
+/**
+ * @nullable
+ */
 export type AttendanceEventWorkAreaSnapshot = {
   workAreaId: string;
   workLocationId: string;
   areaNodes: LatLngNode[];
-};
+} | null;

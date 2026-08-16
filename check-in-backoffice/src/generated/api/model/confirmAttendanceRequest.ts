@@ -12,11 +12,17 @@ export interface ConfirmAttendanceRequest {
    * @minimum -90
    * @maximum 90
    */
-  lat: number;
+  lat?: number;
   /**
    * @minimum -180
    * @maximum 180
    */
-  lng: number;
+  lng?: number;
   capturedAt?: string;
+  isManual?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 500
+   */
+  manualReason?: string;
 }

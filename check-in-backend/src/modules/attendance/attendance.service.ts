@@ -32,8 +32,8 @@ type AttendanceEventRow = {
   attendance_day_id: string
   user_id: string
   event_type: AttendanceEventType
-  lat: number | string
-  lng: number | string
+  lat: number | string | null
+  lng: number | string | null
   photo_path: string | null
   validation_status: 'VALID' | 'INVALID'
   validation_reason: string | null
@@ -41,7 +41,9 @@ type AttendanceEventRow = {
     workAreaId: string
     workLocationId: string
     areaNodes: LatLngNode[]
-  }
+  } | null
+  is_manual: boolean
+  manual_reason: string | null
   captured_at: string
   created_at: string
 }
@@ -90,13 +92,15 @@ function mapEvent(row: AttendanceEventRow, photoUrl: string | null) {
   return {
     id: row.id,
     type: row.event_type,
-    lat: Number(row.lat),
-    lng: Number(row.lng),
+    lat: row.lat === null ? null : Number(row.lat),
+    lng: row.lng === null ? null : Number(row.lng),
     photoPath: row.photo_path,
     photoUrl,
     validationStatus: row.validation_status,
     validationReason: row.validation_reason,
     workAreaSnapshot: row.work_area_snapshot,
+    isManual: row.is_manual,
+    manualReason: row.manual_reason,
     capturedAt: row.captured_at,
     createdAt: row.created_at
   }
@@ -360,10 +364,24 @@ export async function confirmAttendance(input: {
     await assertUploadedPhotoExists(upload)
   }
 
-  const point = { lat: input.payload.lat, lng: input.payload.lng }
-  const workArea = await findActiveWorkAreaForPoint(input.userId, point)
+  const isManual = Boolean(input.payload.isManual)
 
-  if (!workArea) {
+  if (isManual) {
+    if (!input.payload.manualReason?.trim()) {
+      throw badRequest('manualReason is required for manual attendance')
+    }
+  } else if (input.payload.lat === undefined || input.payload.lng === undefined) {
+    throw badRequest('lat and lng are required')
+  }
+
+  const hasPoint = input.payload.lat !== undefined && input.payload.lng !== undefined
+  const point = hasPoint ? { lat: input.payload.lat as number, lng: input.payload.lng as number } : null
+  // Manual punches skip geofence enforcement, but still resolve a work area
+  // best-effort when a fix was sent, so the snapshot stays populated when
+  // possible. Non-manual punches keep the hard rejection unchanged.
+  const workArea = point ? await findActiveWorkAreaForPoint(input.userId, point) : null
+
+  if (!isManual && !workArea) {
     await writeEventLog({
       actorUserId: input.userId,
       eventType: 'attendance.location_rejected',
@@ -403,8 +421,8 @@ export async function confirmAttendance(input: {
       attendance_day_id: day.id,
       user_id: input.userId,
       event_type: input.eventType,
-      lat: input.payload.lat,
-      lng: input.payload.lng,
+      lat: point?.lat ?? null,
+      lng: point?.lng ?? null,
       // Omit photo columns entirely when no photo was uploaded, so photo_path
       // stays null and photo_bucket keeps its column default.
       ...(upload
@@ -416,14 +434,18 @@ export async function confirmAttendance(input: {
         : {}),
       validation_status: 'VALID',
       validation_reason: null,
-      work_area_snapshot: {
-        workAreaId: workArea.id,
-        workLocationId: workArea.work_location_id,
-        areaNodes: workArea.area_nodes
-      },
+      work_area_snapshot: workArea
+        ? {
+            workAreaId: workArea.id,
+            workLocationId: workArea.work_location_id,
+            areaNodes: workArea.area_nodes
+          }
+        : null,
+      is_manual: isManual,
+      manual_reason: isManual ? (input.payload.manualReason as string).trim() : null,
       captured_at: input.payload.capturedAt ?? new Date().toISOString()
     })
-    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,captured_at,created_at')
+    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,captured_at,created_at')
     .single()
 
   if (eventInsert.error || !eventInsert.data) {
@@ -468,7 +490,7 @@ export async function confirmAttendance(input: {
     eventType: input.eventType === 'CHECK_IN' ? 'attendance.check_in_created' : 'attendance.check_out_created',
     resourceType: 'attendance_event',
     resourceId: event.id,
-    metadata: { workDate, point },
+    metadata: { workDate, point, isManual, manualReason: isManual ? input.payload.manualReason : null },
     c: input.c
   })
 
@@ -486,7 +508,7 @@ async function getAttendanceEventsForDay(attendanceDayId: string) {
   const supabaseAdmin = requireSupabaseAdmin()
   const { data, error } = await supabaseAdmin
     .from('attendance_events')
-    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,captured_at,created_at')
+    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,captured_at,created_at')
     .eq('attendance_day_id', attendanceDayId)
 
   if (error) {
@@ -553,7 +575,7 @@ export async function listAttendance(query: ListAttendanceQuery) {
   if (days.length > 0) {
     const { data: events, error: eventsError } = await supabaseAdmin
       .from('attendance_events')
-      .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,captured_at,created_at')
+      .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,captured_at,created_at')
       .in(
         'attendance_day_id',
         days.map((day) => day.id)

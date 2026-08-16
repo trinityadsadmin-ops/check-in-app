@@ -80,7 +80,7 @@ export function AttendanceScreen() {
         {notCheckedIn ? (
           <button
             type="button"
-            onClick={openCheckIn}
+            onClick={() => openCheckIn()}
             className="flex flex-1 items-center justify-center"
             style={{
               height: 50,
@@ -100,7 +100,7 @@ export function AttendanceScreen() {
         {isCheckedIn ? (
           <button
             type="button"
-            onClick={openCheckOut}
+            onClick={() => openCheckOut()}
             className="flex flex-1 items-center justify-center"
             style={{
               height: 50,

@@ -15,8 +15,10 @@ import type { AttendanceEventWorkAreaSnapshot } from './attendanceEventWorkAreaS
 export type AttendanceEvent = {
   id: string;
   type: AttendanceEventType;
-  lat: number;
-  lng: number;
+  /** @nullable */
+  lat: number | null;
+  /** @nullable */
+  lng: number | null;
   /** @nullable */
   photoPath: string | null;
   /** @nullable */
@@ -24,7 +26,11 @@ export type AttendanceEvent = {
   validationStatus: AttendanceEventValidationStatus;
   /** @nullable */
   validationReason: string | null;
+  /** @nullable */
   workAreaSnapshot: AttendanceEventWorkAreaSnapshot;
+  isManual: boolean;
+  /** @nullable */
+  manualReason: string | null;
   capturedAt: string;
   createdAt: string;
 } | null;

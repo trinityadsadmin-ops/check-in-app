@@ -1,6 +1,6 @@
 'use client'
 
-import { Camera, ChevronRight, FileText, LogIn, LogOut, MapPinOff } from 'lucide-react'
+import { Camera, ChevronRight, FileText, LogIn, LogOut, MapPinOff, PenLine } from 'lucide-react'
 import type { Route } from 'next'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -62,6 +62,8 @@ export function HomeScreen() {
   // multiple times a day: show Check Out while checked in, Check In otherwise.
   const isCheckedIn = isCheckedInNow(days)
   const notCheckedIn = !isCheckedIn
+  const openManual = () =>
+    isCheckedIn ? openCheckOut({ manual: true }) : openCheckIn({ manual: true })
 
   const empName = profileUser?.fullName ?? 'Trinity Staff'
   const empId = profileUser?.employeeCode ?? '—'
@@ -156,7 +158,7 @@ export function HomeScreen() {
       {geoStatus === 'denied' ? (
         <button
           type="button"
-          onClick={isCheckedIn ? openCheckOut : openCheckIn}
+          onClick={() => (isCheckedIn ? openCheckOut() : openCheckIn())}
           className="flex items-center"
           style={{
             gap: 8,
@@ -214,7 +216,7 @@ export function HomeScreen() {
           {notCheckedIn ? (
             <button
               type="button"
-              onClick={openCheckIn}
+              onClick={() => openCheckIn()}
               className="flex flex-1 items-center justify-center"
               style={{
                 height: 46,
@@ -234,7 +236,7 @@ export function HomeScreen() {
           {isCheckedIn ? (
             <button
               type="button"
-              onClick={openCheckOut}
+              onClick={() => openCheckOut()}
               className="flex flex-1 items-center justify-center"
               style={{
                 height: 46,
@@ -252,6 +254,24 @@ export function HomeScreen() {
               {t.check_out}
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={openManual}
+            aria-label={t.manual_entry_button}
+            title={t.manual_entry_button}
+            className="flex items-center justify-center"
+            style={{
+              width: 46,
+              height: 46,
+              flex: 'none',
+              borderRadius: 4,
+              background: 'var(--trinity-danger-bg)',
+              border: '1px solid var(--trinity-danger-bd)',
+              color: 'var(--trinity-danger)'
+            }}
+          >
+            <PenLine size={16} />
+          </button>
         </div>
       </div>
 

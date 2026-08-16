@@ -497,10 +497,12 @@
             ]
           },
           "lat": {
-            "type": "number"
+            "type": "number",
+            "nullable": true
           },
           "lng": {
-            "type": "number"
+            "type": "number",
+            "nullable": true
           },
           "photoPath": {
             "type": "string",
@@ -524,6 +526,7 @@
           },
           "workAreaSnapshot": {
             "type": "object",
+            "nullable": true,
             "properties": {
               "workAreaId": {
                 "type": "string",
@@ -546,6 +549,13 @@
               "areaNodes"
             ]
           },
+          "isManual": {
+            "type": "boolean"
+          },
+          "manualReason": {
+            "type": "string",
+            "nullable": true
+          },
           "capturedAt": {
             "type": "string",
             "format": "date-time"
@@ -565,6 +575,8 @@
           "validationStatus",
           "validationReason",
           "workAreaSnapshot",
+          "isManual",
+          "manualReason",
           "capturedAt",
           "createdAt"
         ]
@@ -1011,12 +1023,16 @@
           "capturedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "isManual": {
+            "type": "boolean"
+          },
+          "manualReason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
           }
-        },
-        "required": [
-          "lat",
-          "lng"
-        ]
+        }
       },
       "CreateAreaInspectionUploadUrlResponse": {
         "type": "object",

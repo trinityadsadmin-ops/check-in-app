@@ -119,7 +119,9 @@ function getAttendanceVisits(day: AttendanceDay): AttendanceVisit[] {
   let openVisit: AttendanceVisit | null = null
 
   for (const event of events) {
-    const locationName = locationNamesById.get(event.workAreaSnapshot.workLocationId)
+    const locationName = event.workAreaSnapshot
+      ? locationNamesById.get(event.workAreaSnapshot.workLocationId)
+      : undefined
 
     if (event.type === 'CHECK_IN') {
       openVisit = {
@@ -584,8 +586,20 @@ export function AttendancePage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div>{formatTime(visit.checkIn?.capturedAt, locale)}</div>
-                        {visit.checkIn ? (
+                        <div className="flex items-center gap-1.5">
+                          {formatTime(visit.checkIn?.capturedAt, locale)}
+                          {visit.checkIn?.isManual ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="destructive">{t('attendance.manual')}</Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t('attendance.manualReason')}: {visit.checkIn.manualReason}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : null}
+                        </div>
+                        {visit.checkIn && visit.checkIn.lat != null && visit.checkIn.lng != null ? (
                           <a
                             className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
                             href={`https://www.openstreetmap.org/?mlat=${visit.checkIn.lat}&mlon=${visit.checkIn.lng}#map=18/${visit.checkIn.lat}/${visit.checkIn.lng}`}
@@ -608,8 +622,20 @@ export function AttendancePage() {
                         ) : null}
                       </TableCell>
                       <TableCell>
-                        <div>{formatTime(visit.checkOut?.capturedAt, locale)}</div>
-                        {visit.checkOut ? (
+                        <div className="flex items-center gap-1.5">
+                          {formatTime(visit.checkOut?.capturedAt, locale)}
+                          {visit.checkOut?.isManual ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="destructive">{t('attendance.manual')}</Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t('attendance.manualReason')}: {visit.checkOut.manualReason}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : null}
+                        </div>
+                        {visit.checkOut && visit.checkOut.lat != null && visit.checkOut.lng != null ? (
                           <a
                             className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
                             href={`https://www.openstreetmap.org/?mlat=${visit.checkOut.lat}&mlon=${visit.checkOut.lng}#map=18/${visit.checkOut.lat}/${visit.checkOut.lng}`}

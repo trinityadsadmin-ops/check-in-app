@@ -33,9 +33,10 @@ const DRAG_CLOSE_PX = 90
  */
 export function CheckInSheet() {
   const { t, lang } = useI18n()
-  const { sheet, closeSheet } = useShell()
+  const { sheet, manual, closeSheet } = useShell()
   const { coords, status, request } = useGeolocation()
   const queryClient = useQueryClient()
+  const [reason, setReason] = useState('')
 
   const isOpen = sheet === 'in' || sheet === 'out'
 
@@ -109,6 +110,7 @@ export function CheckInSheet() {
       dragStateRef.current = { dragging: false, startY: 0, deltaY: 0 }
       setDragY(0)
       setIsDragging(false)
+      setReason('')
     }
   }, [isOpen])
 
@@ -149,19 +151,21 @@ export function CheckInSheet() {
     polygon && position ? pointInPolygon(position, polygon) : status === 'ok'
 
   const weak = typeof coords?.accuracy === 'number' && coords.accuracy > 30
-  const geoFg = inside ? 'var(--trinity-success)' : 'var(--trinity-danger)'
-  const geoBg = inside ? 'var(--trinity-success-bg)' : 'var(--trinity-danger-bg)'
-  const geoBd = inside ? 'var(--trinity-success-bd)' : 'var(--trinity-danger-bd)'
+  const geoFg = manual ? 'var(--trinity-mfg)' : inside ? 'var(--trinity-success)' : 'var(--trinity-danger)'
+  const geoBg = manual ? 'var(--trinity-muted2)' : inside ? 'var(--trinity-success-bg)' : 'var(--trinity-danger-bg)'
+  const geoBd = manual ? 'var(--trinity-border)' : inside ? 'var(--trinity-success-bd)' : 'var(--trinity-danger-bd)'
   const geoStatus =
     status === 'locating'
       ? t.locating
       : status === 'denied'
         ? t.geo_denied
-        : inside
-          ? t.geo_inside
-          : t.geo_outside
+        : manual
+          ? t.manual_not_enforced
+          : inside
+            ? t.geo_inside
+            : t.geo_outside
 
-  const sheetTitle = sheet === 'in' ? t.sheet_in : t.sheet_out
+  const sheetTitle = (sheet === 'in' ? t.sheet_in : t.sheet_out) + (manual ? ` · ${t.manual_mode_badge}` : '')
   const confirmLabel = sheet === 'in' ? t.confirm_in : t.confirm_out
 
   const clock = new Date(now).toLocaleTimeString(lang === 'th' ? 'th-TH' : 'en-GB', {
@@ -169,21 +173,27 @@ export function CheckInSheet() {
     minute: '2-digit'
   })
 
-  const canConfirm = !!position && !submitting && status !== 'locating'
+  const canConfirm = manual
+    ? !submitting && reason.trim().length > 0
+    : !!position && !submitting && status !== 'locating'
 
   // Confirm location → submit the check-in/out punch directly (no photo).
   const onConfirm = async () => {
-    if (!position) {
+    if (!manual && !position) {
       toast.error(t.locating)
       request()
+      return
+    }
+    if (manual && reason.trim().length === 0) {
+      toast.error(t.manual_reason_required)
       return
     }
     setSubmitting(true)
     try {
       const body = {
-        lat: position.lat,
-        lng: position.lng,
-        capturedAt: new Date().toISOString()
+        ...(position ? { lat: position.lat, lng: position.lng } : {}),
+        capturedAt: new Date().toISOString(),
+        ...(manual ? { isManual: true, manualReason: reason.trim() } : {})
       }
       if (sheet === 'in') {
         await checkInMutation.mutateAsync({ data: body })
@@ -363,6 +373,36 @@ export function CheckInSheet() {
             </span>
           </div>
         </div>
+
+        {/* manual reason: required when checking in/out without geofence enforcement */}
+        {manual ? (
+          <div style={{ marginTop: 13 }}>
+            <label
+              htmlFor="manual-reason"
+              style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--trinity-mfg)' }}
+            >
+              {t.manual_reason_label}
+            </label>
+            <textarea
+              id="manual-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={t.manual_reason_placeholder}
+              maxLength={500}
+              rows={3}
+              style={{
+                marginTop: 6,
+                width: '100%',
+                resize: 'none',
+                borderRadius: 8,
+                border: '1px solid var(--trinity-border)',
+                padding: '9px 12px',
+                fontSize: 13.5,
+                fontFamily: 'inherit'
+              }}
+            />
+          </div>
+        ) : null}
 
         {/* actions */}
         <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>

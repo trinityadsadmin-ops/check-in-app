@@ -20,8 +20,10 @@ type ToggleSurface = {
 export type ShellContextValue = {
   /** Check-in / check-out verification sheet ('in' | 'out' | null). */
   sheet: SheetMode
-  openCheckIn: () => void
-  openCheckOut: () => void
+  /** True when the open sheet is a manual (reason-flagged, unenforced-location) entry. */
+  manual: boolean
+  openCheckIn: (opts?: { manual?: boolean }) => void
+  openCheckOut: (opts?: { manual?: boolean }) => void
   closeSheet: () => void
 
   /** SOS panel (hold-to-trigger emergency). */
@@ -49,6 +51,7 @@ const ShellContext = createContext<ShellContextValue | null>(null)
 
 export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [sheet, setSheet] = useState<SheetMode>(null)
+  const [manual, setManual] = useState(false)
   const [sosOpen, setSosOpen] = useState(false)
   const [fabOpen, setFabOpen] = useState(false)
   const [online, setOnlineState] = useState(true)
@@ -80,9 +83,18 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const openCheckIn = useCallback(() => setSheet('in'), [])
-  const openCheckOut = useCallback(() => setSheet('out'), [])
-  const closeSheet = useCallback(() => setSheet(null), [])
+  const openCheckIn = useCallback((opts?: { manual?: boolean }) => {
+    setSheet('in')
+    setManual(!!opts?.manual)
+  }, [])
+  const openCheckOut = useCallback((opts?: { manual?: boolean }) => {
+    setSheet('out')
+    setManual(!!opts?.manual)
+  }, [])
+  const closeSheet = useCallback(() => {
+    setSheet(null)
+    setManual(false)
+  }, [])
 
   const sos = useMemo<ToggleSurface>(
     () => ({
@@ -122,6 +134,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<ShellContextValue>(
     () => ({
       sheet,
+      manual,
       openCheckIn,
       openCheckOut,
       closeSheet,
@@ -136,6 +149,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       sheet,
+      manual,
       openCheckIn,
       openCheckOut,
       closeSheet,

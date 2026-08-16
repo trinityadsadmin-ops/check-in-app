@@ -25,9 +25,12 @@ export const ConfirmAttendanceRequestSchema = z
   .object({
     /** Optional — attendance can be confirmed without a photo. */
     pendingUploadId: z.string().uuid().optional(),
-    lat: z.number().min(-90).max(90),
-    lng: z.number().min(-180).max(180),
-    capturedAt: z.string().datetime().optional()
+    lat: z.number().min(-90).max(90).optional(),
+    lng: z.number().min(-180).max(180).optional(),
+    capturedAt: z.string().datetime().optional(),
+    /** Manual check-in/out: skips geofence enforcement, requires manualReason. */
+    isManual: z.boolean().optional(),
+    manualReason: z.string().trim().min(1).max(500).optional()
   })
   .openapi('ConfirmAttendanceRequest')
 
@@ -35,17 +38,21 @@ export const AttendanceEventSchema = z
   .object({
     id: z.string().uuid(),
     type: AttendanceEventTypeSchema,
-    lat: z.number(),
-    lng: z.number(),
+    lat: z.number().nullable(),
+    lng: z.number().nullable(),
     photoPath: z.string().nullable(),
     photoUrl: z.string().url().nullable(),
     validationStatus: z.enum(['VALID', 'INVALID']),
     validationReason: z.string().nullable(),
-    workAreaSnapshot: z.object({
-      workAreaId: z.string().uuid(),
-      workLocationId: z.string().uuid(),
-      areaNodes: z.array(LatLngNodeSchema).length(4)
-    }),
+    workAreaSnapshot: z
+      .object({
+        workAreaId: z.string().uuid(),
+        workLocationId: z.string().uuid(),
+        areaNodes: z.array(LatLngNodeSchema).length(4)
+      })
+      .nullable(),
+    isManual: z.boolean(),
+    manualReason: z.string().nullable(),
     capturedAt: z.string().datetime(),
     createdAt: z.string().datetime()
   })
