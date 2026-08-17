@@ -51,6 +51,7 @@ export * from './createSalaryUploadUrlResponse';
 export * from './createWorkLocationRequest';
 export * from './currentUserResponse';
 export * from './deleteAreaInspectionResponse';
+export * from './deleteBackofficeUserResponse';
 export * from './deleteSalaryRecordResponse';
 export * from './deleteSalaryUploadResponse';
 export * from './deleteWorkLocationResponse';

@@ -112,6 +112,12 @@ export const BackofficeUserResponseSchema = z
   })
   .openapi('BackofficeUserResponse')
 
+export const DeleteBackofficeUserResponseSchema = z
+  .object({
+    deleted: z.boolean()
+  })
+  .openapi('DeleteBackofficeUserResponse')
+
 export const ListUsersResponseSchema = z
   .object({
     users: z.array(BackofficeUserSchema),

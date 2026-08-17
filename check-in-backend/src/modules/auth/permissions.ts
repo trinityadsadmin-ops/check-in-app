@@ -2,6 +2,7 @@ export const permissions = {
   usersRead: 'users:read',
   usersCreate: 'users:create',
   usersUpdate: 'users:update',
+  usersDelete: 'users:delete',
   usersResetDevice: 'users:reset_device',
   rolesRead: 'roles:read',
   rolesAssign: 'roles:assign',

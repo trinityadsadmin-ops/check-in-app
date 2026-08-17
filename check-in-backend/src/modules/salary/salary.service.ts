@@ -188,12 +188,10 @@ function parsePeriodMonth(value: unknown) {
   return stringValue
 }
 
-async function findProfile(row: SalaryImportRow) {
+async function findProfile(input: { employeeCode: string | null; employeeEmail: string | null }) {
   const supabaseAdmin = requireSupabaseAdmin()
-  const employeeCode = toStringValue(row.employee_code)
-  const employeeEmail = toStringValue(row.employee_email)?.toLowerCase() ?? null
 
-  if (!employeeCode && !employeeEmail) {
+  if (!input.employeeCode && !input.employeeEmail) {
     return null
   }
 
@@ -202,13 +200,13 @@ async function findProfile(row: SalaryImportRow) {
     .select('id,email,employee_code')
     .limit(1)
 
-  if (employeeCode && employeeEmail) {
-    request = request.or(`employee_code.eq.${employeeCode},email.eq.${employeeEmail}`)
-  } else if (employeeCode) {
-    request = request.eq('employee_code', employeeCode)
-  } else if (employeeEmail) {
-    request = request.eq('email', employeeEmail)
+  if (input.employeeCode) {
+    request = request.eq('employee_code', input.employeeCode)
+  } else if (input.employeeEmail) {
+    request = request.eq('email', input.employeeEmail)
   }
+
+  request = request.is('deleted_at', null)
 
   const { data, error } = await request.maybeSingle()
 
@@ -398,7 +396,7 @@ export async function importSalaryUpload(input: {
     const rowErrors: SalaryImportError[] = []
     const employeeCode = toStringValue(row.employee_code)
     const employeeEmail = toStringValue(row.employee_email)?.toLowerCase() ?? null
-    const profile = await findProfile(row)
+    const profile = await findProfile({ employeeCode, employeeEmail })
     const periodMonth = parsePeriodMonth(row.period_month)
     const baseSalary = parseRequiredMoneyColumn(row, 'base_salary', rowNumber, rowErrors)
     const allowance = parseRequiredMoneyColumn(row, 'allowance', rowNumber, rowErrors)
@@ -441,6 +439,17 @@ export async function importSalaryUpload(input: {
           message: 'Employee email does not match any user profile in the system'
         })
       }
+    } else if (
+      employeeCode &&
+      employeeEmail &&
+      profile.email?.trim().toLowerCase() !== employeeEmail
+    ) {
+      rowErrors.push({
+        row: rowNumber,
+        column: 'employee_code, employee_email',
+        value: `${employeeCode}, ${employeeEmail}`,
+        message: 'employee_code and employee_email refer to different users'
+      })
     }
 
     if (!periodMonth) {
@@ -461,8 +470,8 @@ export async function importSalaryUpload(input: {
       {
         upload_batch_id: input.uploadBatchId,
         user_id: profile!.id,
-        employee_code: employeeCode ?? profile!.employee_code,
-        employee_email: employeeEmail ?? profile!.email,
+        employee_code: profile!.employee_code,
+        employee_email: profile!.email,
         period_month: periodMonth!,
         base_salary: baseSalary,
         allowance,

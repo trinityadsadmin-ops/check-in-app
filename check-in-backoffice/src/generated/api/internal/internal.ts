@@ -36,24 +36,24 @@ import type {
 export const getCleanupRetentionUrl = () => {
 
 
-  
+
 
   return `/api/internal/retention/cleanup`
 }
 
 export const cleanupRetention = async ( options?: RequestInit): Promise<RetentionCleanupResponse> => {
-  
+
   const res = await fetch(getCleanupRetentionUrl(),
-  {      
+  {
     ...options,
     method: 'POST'
-    
-    
+
+
   }
 )
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-  
+
   const data: RetentionCleanupResponse = body ? JSON.parse(body) : {}
   return data
 }
@@ -72,22 +72,22 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, fetch: undefined};
 
-      
+
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof cleanupRetention>>, void> = () => {
-          
+
 
           return  cleanupRetention(fetchOptions)
         }
 
-        
+
 
 
   return  { mutationFn, ...mutationOptions }}
 
     export type CleanupRetentionMutationResult = NonNullable<Awaited<ReturnType<typeof cleanupRetention>>>
-    
+
     export type CleanupRetentionMutationError = ErrorResponse
 
     export const useCleanupRetention = <TError = ErrorResponse,
@@ -106,24 +106,24 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export const getCleanupRetentionCronUrl = () => {
 
 
-  
+
 
   return `/api/internal/retention/cleanup`
 }
 
 export const cleanupRetentionCron = async ( options?: RequestInit): Promise<RetentionCleanupResponse> => {
-  
+
   const res = await fetch(getCleanupRetentionCronUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 )
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-  
+
   const data: RetentionCleanupResponse = body ? JSON.parse(body) : {}
   return data
 }
@@ -134,7 +134,7 @@ export const getCleanupRetentionCronQueryKey = () => {
     return [`/api/internal/retention/cleanup`] as const;
     }
 
-    
+
 export const getCleanupRetentionCronQueryOptions = <TData = Awaited<ReturnType<typeof cleanupRetentionCron>>, TError = ErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof cleanupRetentionCron>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -142,13 +142,13 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getCleanupRetentionCronQueryKey();
 
-  
+
 
     const queryFn: QueryFunction<Awaited<ReturnType<typeof cleanupRetentionCron>>> = ({ signal }) => cleanupRetentionCron({ ...(signal ? { signal } : {}), ...fetchOptions });
 
-      
 
-      
+
+
 
    return  { queryKey, queryFn,   staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof cleanupRetentionCron>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
@@ -184,7 +184,7 @@ export function useCleanupRetentionCron<TData = Awaited<ReturnType<typeof cleanu
 
 export function useCleanupRetentionCron<TData = Awaited<ReturnType<typeof cleanupRetentionCron>>, TError = ErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof cleanupRetentionCron>>, TError, TData>>, fetch?: RequestInit}
- , queryClient?: QueryClient 
+ , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getCleanupRetentionCronQueryOptions(options)

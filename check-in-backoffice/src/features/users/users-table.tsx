@@ -13,6 +13,16 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -64,7 +74,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { ApiError, getApiErrorCode } from '@/lib/api/fetch-json'
+import { ApiError } from '@/lib/api/fetch-json'
 import { getErrorMessage } from '@/lib/api/errors'
 import type { BackofficeUser, UserPermissionOverride } from '@/generated/api/model'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
@@ -72,6 +82,7 @@ import { useI18n } from '@/lib/i18n'
 import { hasEveryPermission, hasPermission, permissions as permissionKeys } from '@/lib/permissions'
 import {
   createUser,
+  deleteUser,
   getUserEffectivePermissions,
   getUserWorkAreas,
   listPermissions,
@@ -124,8 +135,10 @@ export function UsersTable() {
   const [editingUser, setEditingUser] = useState<BackofficeUser | null>(null)
   const [editFullName, setEditFullName] = useState('')
   const [editEmail, setEditEmail] = useState('')
+  const [editEmployeeCode, setEditEmployeeCode] = useState('')
   const [editPassword, setEditPassword] = useState('')
   const [editPasswordConfirmation, setEditPasswordConfirmation] = useState('')
+  const [deleteTargetUser, setDeleteTargetUser] = useState<BackofficeUser | null>(null)
   const [userPage, setUserPage] = useState(1)
   const [usersPerPage, setUsersPerPage] = useState(20)
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
@@ -145,6 +158,7 @@ export function UsersTable() {
   const canReadRoles = hasPermission(currentUser, permissionKeys.rolesRead)
   const canAssignRoles = hasPermission(currentUser, permissionKeys.rolesAssign)
   const canUpdateUsers = hasPermission(currentUser, permissionKeys.usersUpdate)
+  const canDeleteUsers = hasPermission(currentUser, permissionKeys.usersDelete)
   const canResetDevice = hasPermission(currentUser, permissionKeys.usersResetDevice)
   const canReadPermissions = hasPermission(currentUser, permissionKeys.permissionsRead)
   const canUpdatePermissions = hasPermission(currentUser, permissionKeys.permissionsUpdate)
@@ -242,6 +256,7 @@ export function UsersTable() {
       return updateUser(editingUser.id, {
         fullName: editFullName.trim(),
         email: editEmail.trim(),
+        employeeCode: editEmployeeCode.trim() || null,
         ...(editPassword ? { password: editPassword } : {})
       })
     },
@@ -251,6 +266,7 @@ export function UsersTable() {
         queryClient.invalidateQueries({ queryKey: ['user-effective-permissions', editingUser.id] })
       }
       setEditingUser(null)
+      setEditEmployeeCode('')
       setEditPassword('')
       setEditPasswordConfirmation('')
       toast.success(t('users.toastUpdated'))
@@ -262,6 +278,19 @@ export function UsersTable() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['backoffice-users'] })
       toast.success(t('users.toastDeviceReset'))
+    },
+    onError: (error) => showActionError(t('toast.actionFailed'), error, resolveErrorCode)
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => deleteUser(userId),
+    onSuccess: () => {
+      setDeleteTargetUser(null)
+      setSelectedUserId('')
+      setViewedWorkAreaUser(null)
+      queryClient.invalidateQueries({ queryKey: ['backoffice-users'] })
+      queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] })
+      queryClient.invalidateQueries({ queryKey: ['user-work-areas'] })
+      toast.success(t('users.toastDeleted'))
     },
     onError: (error) => showActionError(t('toast.actionFailed'), error, resolveErrorCode)
   })
@@ -336,10 +365,6 @@ export function UsersTable() {
         permission.name.toLowerCase().includes(searchValue)
     )
   }, [availablePermissions, permissionSearch])
-  const employeeCodeError =
-    createMutation.isError && getApiErrorCode(createMutation.error) === 'EMPLOYEE_CODE_ALREADY_EXISTS'
-      ? resolveErrorCode('EMPLOYEE_CODE_ALREADY_EXISTS')
-      : undefined
   const hasPermissionChanges = useMemo(() => {
     const savedPermissionKeys =
       effectivePermissionsQuery.data?.permissions
@@ -404,6 +429,7 @@ export function UsersTable() {
     setEditingUser(user)
     setEditFullName(user.fullName ?? '')
     setEditEmail(user.email ?? '')
+    setEditEmployeeCode(user.employeeCode ?? '')
     setEditPassword('')
     setEditPasswordConfirmation('')
     editMutation.reset()
@@ -591,6 +617,23 @@ export function UsersTable() {
                                 <RotateCcw className="size-4" />
                                 {t('common.reset')}
                               </Button>
+                            ) : null}
+                            {canDeleteUsers && !isCurrentUser ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={t('users.delete')}
+                                    disabled={deleteMutation.isPending}
+                                    onClick={() => setDeleteTargetUser(user)}
+                                  >
+                                    <Trash2 className="size-4 text-destructive" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{t('users.delete')}</TooltipContent>
+                              </Tooltip>
                             ) : null}
                           </div>
                         </TableCell>
@@ -866,19 +909,13 @@ export function UsersTable() {
               id="create-user-employee-code"
               placeholder={t('users.employeeCode')}
               value={employeeCode}
-              aria-invalid={Boolean(employeeCodeError)}
               onChange={(event) => {
                 setEmployeeCode(event.target.value)
                 createMutation.reset()
               }}
             />
-            {employeeCodeError ? (
-              <p className="text-sm text-destructive" role="alert">
-                {employeeCodeError}
-              </p>
-            ) : null}
           </div>
-          {createMutation.isError && !employeeCodeError ? (
+          {createMutation.isError ? (
             <div className="sm:col-span-2">
               <ErrorBanner
                 error={createMutation.error}
@@ -969,6 +1006,7 @@ export function UsersTable() {
       onOpenChange={(open) => {
         if (!open && !editMutation.isPending) {
           setEditingUser(null)
+          setEditEmployeeCode('')
           setEditPassword('')
           setEditPasswordConfirmation('')
         }
@@ -1004,6 +1042,15 @@ export function UsersTable() {
               value={editEmail}
               onChange={(event) => setEditEmail(event.target.value)}
               required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-user-employee-code">{t('users.employeeCode')}</Label>
+            <Input
+              id="edit-user-employee-code"
+              value={editEmployeeCode}
+              onChange={(event) => setEditEmployeeCode(event.target.value)}
+              maxLength={80}
             />
           </div>
           <div className="grid gap-2">
@@ -1048,7 +1095,10 @@ export function UsersTable() {
               type="button"
               variant="outline"
               disabled={editMutation.isPending}
-              onClick={() => setEditingUser(null)}
+              onClick={() => {
+                setEditingUser(null)
+                setEditEmployeeCode('')
+              }}
             >
               {t('common.cancel')}
             </Button>
@@ -1069,6 +1119,40 @@ export function UsersTable() {
         </form>
       </DialogContent>
     </Dialog>
+    <AlertDialog
+      open={Boolean(deleteTargetUser)}
+      onOpenChange={(open) => {
+        if (!open && !deleteMutation.isPending) {
+          setDeleteTargetUser(null)
+        }
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('users.deleteTitle')}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t('users.deleteDescription')} {deleteTargetUser?.fullName ?? deleteTargetUser?.email}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleteMutation.isPending}>
+            {t('common.cancel')}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              if (deleteTargetUser) {
+                deleteMutation.mutate(deleteTargetUser.id)
+              }
+            }}
+          >
+            <Trash2 className="size-4" />
+            {t('users.confirmDelete')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   )
 }

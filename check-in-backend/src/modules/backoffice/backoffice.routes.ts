@@ -68,6 +68,7 @@ import {
   BackofficeUserResponseSchema,
   CreateBackofficeUserRequestSchema,
   CreateWorkLocationRequestSchema,
+  DeleteBackofficeUserResponseSchema,
   DeleteWorkLocationResponseSchema,
   EmployeeWorkAreasResponseSchema,
   GetUserDeviceResponseSchema,
@@ -97,6 +98,7 @@ import {
 import {
   createBackofficeUser,
   createWorkLocation,
+  deleteBackofficeUser,
   deleteWorkLocation,
   getUserEffectivePermissions,
   getUserPermissionOverrides,
@@ -273,6 +275,40 @@ backofficeRoutes.openapi(updateUserRoute, async (c) => {
     await updateBackofficeUser({
       userId,
       payload,
+      actorUserId: c.get('currentUser').id,
+      c
+    }),
+    200
+  )
+})
+
+const deleteUserRoute = createRoute({
+  method: 'delete',
+  path: '/users/{userId}',
+  operationId: 'deleteBackofficeUser',
+  tags: ['Backoffice'],
+  request: {
+    params: UuidParamSchema
+  },
+  responses: {
+    200: {
+      description: 'User archived and access revoked',
+      content: {
+        'application/json': {
+          schema: DeleteBackofficeUserResponseSchema
+        }
+      }
+    },
+    ...commonErrorResponses
+  }
+})
+
+backofficeRoutes.openapi(deleteUserRoute, async (c) => {
+  ensurePermission(c, permissions.usersDelete)
+  const { userId } = c.req.valid('param')
+  return c.json(
+    await deleteBackofficeUser({
+      userId,
       actorUserId: c.get('currentUser').id,
       c
     }),

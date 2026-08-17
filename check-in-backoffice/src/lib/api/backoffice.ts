@@ -3,6 +3,7 @@ import {
   getCreateBackofficeUserUrl,
   getCreateSalaryUploadUrlUrl,
   getCreateWorkLocationUrl,
+  getDeleteBackofficeUserUrl,
   getDeleteAreaInspectionAdminUrl,
   getDeleteWorkLocationUrl,
   getDeleteSalaryRecordUrl,
@@ -39,6 +40,7 @@ import type {
   AreaInspectionResponse,
   AttendanceDayResponse,
   BackofficeUserResponse,
+  DeleteBackofficeUserResponse,
   DeleteAreaInspectionResponse,
   DeleteWorkLocationResponse,
   ListAreaInspectionsParams,
@@ -108,6 +110,12 @@ export function updateUser(userId: string, payload: UpdateBackofficeUserRequest)
   return fetchJson<BackofficeUserResponse>(getUpdateBackofficeUserUrl(userId), {
     method: 'PATCH',
     body: payload
+  })
+}
+
+export function deleteUser(userId: string) {
+  return fetchJson<DeleteBackofficeUserResponse>(getDeleteBackofficeUserUrl(userId), {
+    method: 'DELETE'
   })
 }
 

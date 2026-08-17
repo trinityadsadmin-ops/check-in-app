@@ -124,11 +124,7 @@ function isDuplicateEmployeeCodeError(error: unknown) {
     return false
   }
 
-  const databaseError = error as {
-    code?: unknown
-    message?: unknown
-    details?: unknown
-  }
+  const databaseError = error as { code?: unknown; message?: unknown; details?: unknown }
 
   if (databaseError.code !== '23505') {
     return false
@@ -288,6 +284,7 @@ async function getUserById(userId: string) {
     .from('profiles')
     .select('id,email,full_name,employee_code,is_active,created_at,roles(id,key,name)')
     .eq('id', userId)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (error) {
@@ -311,6 +308,7 @@ export async function listUsers(query: ListUsersQuery) {
     .select('id,email,full_name,employee_code,is_active,created_at,roles(id,key,name)', {
       count: 'exact'
     })
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .range(from, to)
 
@@ -440,14 +438,13 @@ export async function updateBackofficeUser(input: {
     return { user: await getUserById(input.userId) }
   }
 
-  // Validate the only profile-level unique value before changing Auth, because
-  // Supabase Auth and public.profiles cannot share a database transaction.
   if (input.payload.employeeCode) {
     const { data: existingEmployeeCode, error: employeeCodeError } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('employee_code', input.payload.employeeCode)
       .neq('id', input.userId)
+      .is('deleted_at', null)
       .maybeSingle()
 
     if (employeeCodeError) {
@@ -475,7 +472,11 @@ export async function updateBackofficeUser(input: {
   }
 
   if (Object.keys(updates).length > 0) {
-    const { error } = await supabaseAdmin.from('profiles').update(updates).eq('id', input.userId)
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update(updates)
+      .eq('id', input.userId)
+      .is('deleted_at', null)
 
     if (error) {
       throw profileWriteError(error)
@@ -498,6 +499,45 @@ export async function updateBackofficeUser(input: {
   })
 
   return { user: await getUserById(input.userId) }
+}
+
+export async function deleteBackofficeUser(input: {
+  userId: string
+  actorUserId: string
+  c?: Context<AppEnv> | undefined
+}) {
+  if (input.userId === input.actorUserId) {
+    throw forbidden('You cannot delete your own user')
+  }
+
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { data, error } = await supabaseAdmin.rpc('archive_user_profile', {
+    p_user_id: input.userId,
+    p_actor_user_id: input.actorUserId
+  })
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  if (!data) {
+    throw notFound('User profile was not found')
+  }
+
+  await writeAuditLog({
+    actorUserId: input.actorUserId,
+    action: 'user.delete',
+    resourceType: 'profile',
+    resourceId: input.userId,
+    metadata: {
+      deletionType: 'archive',
+      deviceBindingsRevoked: true,
+      workAreaAssignmentsDeactivated: true
+    },
+    c: input.c
+  })
+
+  return { deleted: true }
 }
 
 export async function getUserPermissionOverrides(userId: string) {
@@ -532,6 +572,7 @@ export async function getUserEffectivePermissions(userId: string) {
     .from('profiles')
     .select('id,email,full_name,employee_code,role_id,is_active,created_at,roles(id,key,name)')
     .eq('id', userId)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (profileError) {

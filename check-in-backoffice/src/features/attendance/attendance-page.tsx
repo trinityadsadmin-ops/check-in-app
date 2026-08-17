@@ -316,7 +316,9 @@ export function AttendancePage() {
             [t('users.employeeCode')]: getEmployeeDescription(day),
             [t('attendance.workLocation')]: visit.workLocationNames.join(', '),
             [t('attendance.checkIn')]: formatTime(visit.checkIn?.capturedAt, locale),
+            [t('attendance.checkInComment')]: visit.checkIn?.manualReason ?? '',
             [t('attendance.checkOut')]: formatTime(visit.checkOut?.capturedAt, locale),
+            [t('attendance.checkOutComment')]: visit.checkOut?.manualReason ?? '',
             [t('common.status')]: t(translateStatusKey(day.reviewStatus))
           }))
         )
@@ -588,17 +590,13 @@ export function AttendancePage() {
                       <TableCell>
                         <div className="flex items-center gap-1.5">
                           {formatTime(visit.checkIn?.capturedAt, locale)}
-                          {visit.checkIn?.isManual ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="destructive">{t('attendance.manual')}</Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {t('attendance.manualReason')}: {visit.checkIn.manualReason}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : null}
+                          {visit.checkIn?.isManual ? <Badge variant="destructive">{t('attendance.manual')}</Badge> : null}
                         </div>
+                        {visit.checkIn?.isManual && visit.checkIn.manualReason ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t('attendance.manualReason')}: {visit.checkIn.manualReason}
+                          </p>
+                        ) : null}
                         {visit.checkIn && visit.checkIn.lat != null && visit.checkIn.lng != null ? (
                           <a
                             className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
@@ -624,17 +622,13 @@ export function AttendancePage() {
                       <TableCell>
                         <div className="flex items-center gap-1.5">
                           {formatTime(visit.checkOut?.capturedAt, locale)}
-                          {visit.checkOut?.isManual ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="destructive">{t('attendance.manual')}</Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {t('attendance.manualReason')}: {visit.checkOut.manualReason}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : null}
+                          {visit.checkOut?.isManual ? <Badge variant="destructive">{t('attendance.manual')}</Badge> : null}
                         </div>
+                        {visit.checkOut?.isManual && visit.checkOut.manualReason ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t('attendance.manualReason')}: {visit.checkOut.manualReason}
+                          </p>
+                        ) : null}
                         {visit.checkOut && visit.checkOut.lat != null && visit.checkOut.lng != null ? (
                           <a
                             className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"

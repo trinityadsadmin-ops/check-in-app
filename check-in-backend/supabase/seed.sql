@@ -19,6 +19,7 @@ values
   ('users:read', 'Read users', 'View employee and user records'),
   ('users:create', 'Create users', 'Create employee and user records'),
   ('users:update', 'Update users', 'Update employee and user records'),
+  ('users:delete', 'Delete users', 'Archive a user and revoke their access'),
   ('users:reset_device', 'Reset user device', 'Reset an employee device binding'),
   ('roles:read', 'Read roles', 'View roles'),
   ('roles:assign', 'Assign roles', 'Assign roles to users'),
