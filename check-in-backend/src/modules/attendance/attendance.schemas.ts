@@ -55,6 +55,8 @@ export const AttendanceEventSchema = z
       .nullable(),
     isManual: z.boolean(),
     manualReason: z.string().nullable(),
+    /** How long the check-in this closes lasted, in seconds. Only set on CHECK_OUT events. */
+    durationSeconds: z.number().int().nullable(),
     capturedAt: z.string().datetime(),
     createdAt: z.string().datetime()
   })

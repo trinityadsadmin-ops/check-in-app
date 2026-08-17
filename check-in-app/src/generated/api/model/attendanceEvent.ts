@@ -31,6 +31,8 @@ export type AttendanceEvent = {
   isManual: boolean;
   /** @nullable */
   manualReason: string | null;
+  /** @nullable */
+  durationSeconds: number | null;
   capturedAt: string;
   createdAt: string;
 } | null;

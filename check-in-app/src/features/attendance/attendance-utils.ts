@@ -84,6 +84,25 @@ export function fmtTime(iso: string, lang: 'th' | 'en'): string {
   })
 }
 
+/** Format a duration in seconds as "1h 20m" / "1 ชม. 20 นาที" in the active locale. */
+export function fmtDuration(totalSeconds: number, lang: 'th' | 'en'): string {
+  const totalMinutes = Math.max(0, Math.floor(totalSeconds / 60))
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (lang === 'th') {
+    if (hours === 0 && minutes === 0) return 'น้อยกว่า 1 นาที'
+    return [hours > 0 ? `${hours} ชม.` : null, hours === 0 || minutes > 0 ? `${minutes} นาที` : null]
+      .filter(Boolean)
+      .join(' ')
+  }
+
+  if (hours === 0 && minutes === 0) return '<1m'
+  return [hours > 0 ? `${hours}h` : null, hours === 0 || minutes > 0 ? `${minutes}m` : null]
+    .filter(Boolean)
+    .join(' ')
+}
+
 /** Whether an event landed inside its work area (validation status OK). */
 export function isInside(event: AttendanceEventValue): boolean {
   return event.validationStatus === 'VALID'
@@ -141,6 +160,8 @@ export type AttendanceRow = {
   inside: boolean
   /** Name of the work location the event's snapshot points at, or null if unresolved. */
   workLocationName: string | null
+  /** How long the check-in this closes lasted, in seconds. Only set on check-out rows. */
+  durationSeconds: number | null
 }
 
 function dayMeta(workDate: string, lang: 'th' | 'en', todayLabel: string, yesterdayLabel: string): string {
@@ -185,7 +206,8 @@ export function toRows(
         time: fmtTime(event.capturedAt, lang),
         tag: inside ? labels.tagIn : labels.tagOut,
         inside,
-        workLocationName: workLocationId ? (locationNameById.get(workLocationId) ?? null) : null
+        workLocationName: workLocationId ? (locationNameById.get(workLocationId) ?? null) : null,
+        durationSeconds: event.durationSeconds
       })
     }
   }

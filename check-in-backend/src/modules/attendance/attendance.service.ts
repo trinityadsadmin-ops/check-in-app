@@ -47,6 +47,7 @@ type AttendanceEventRow = {
   } | null
   is_manual: boolean
   manual_reason: string | null
+  duration_seconds: number | string | null
   captured_at: string
   created_at: string
 }
@@ -104,6 +105,7 @@ function mapEvent(row: AttendanceEventRow, photoUrl: string | null) {
     workAreaSnapshot: row.work_area_snapshot,
     isManual: row.is_manual,
     manualReason: row.manual_reason,
+    durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
     capturedAt: row.captured_at,
     createdAt: row.created_at
   }
@@ -434,6 +436,31 @@ export async function confirmAttendance(input: {
     throw badRequest('Unable to create attendance day')
   }
 
+  const capturedAt = input.payload.capturedAt ?? new Date().toISOString()
+
+  // Check-out duration: the day's check-in/check-out cycles always alternate
+  // (enforced by assertAttendanceActionAllowed), so the most recent CHECK_IN
+  // in the day is the one this check-out is closing.
+  let durationSeconds: number | undefined
+  if (input.eventType === 'CHECK_OUT') {
+    const dayEvents = await getAttendanceEventsForDay(day.id)
+    const openCheckIn = dayEvents
+      .filter((event) => event.event_type === 'CHECK_IN')
+      .reduce<AttendanceEventRow | null>(
+        (latest, event) =>
+          !latest || new Date(event.captured_at).getTime() > new Date(latest.captured_at).getTime()
+            ? event
+            : latest,
+        null
+      )
+    if (openCheckIn) {
+      durationSeconds = Math.max(
+        0,
+        Math.round((new Date(capturedAt).getTime() - new Date(openCheckIn.captured_at).getTime()) / 1000)
+      )
+    }
+  }
+
   const eventInsert = await supabaseAdmin
     .from('attendance_events')
     .insert({
@@ -462,9 +489,10 @@ export async function confirmAttendance(input: {
         : null,
       is_manual: isManual,
       manual_reason: isManual ? (input.payload.manualReason as string).trim() : null,
-      captured_at: input.payload.capturedAt ?? new Date().toISOString()
+      ...(durationSeconds !== undefined ? { duration_seconds: durationSeconds } : {}),
+      captured_at: capturedAt
     })
-    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,captured_at,created_at')
+    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,duration_seconds,captured_at,created_at')
     .single()
 
   if (eventInsert.error || !eventInsert.data) {
@@ -533,7 +561,7 @@ async function getAttendanceEventsForDay(attendanceDayId: string) {
   const supabaseAdmin = requireSupabaseAdmin()
   const { data, error } = await supabaseAdmin
     .from('attendance_events')
-    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,captured_at,created_at')
+    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,duration_seconds,captured_at,created_at')
     .eq('attendance_day_id', attendanceDayId)
 
   if (error) {
@@ -600,7 +628,7 @@ export async function listAttendance(query: ListAttendanceQuery) {
   if (days.length > 0) {
     const { data: events, error: eventsError } = await supabaseAdmin
       .from('attendance_events')
-      .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,captured_at,created_at')
+      .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,duration_seconds,captured_at,created_at')
       .in(
         'attendance_day_id',
         days.map((day) => day.id)

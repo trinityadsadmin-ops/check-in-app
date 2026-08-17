@@ -1,9 +1,18 @@
 'use client'
 
-import { Camera, ChevronRight, FileText, LogIn, LogOut, MapPinOff, PenLine } from 'lucide-react'
+import {
+  Building2,
+  Camera,
+  ChevronRight,
+  FileText,
+  LogIn,
+  LogOut,
+  MapPinOff,
+  PenLine
+} from 'lucide-react'
 import type { Route } from 'next'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
   useGetFrontendProfile,
   useGetFrontendWorkAreas,
@@ -17,10 +26,12 @@ import { useShell } from '@/lib/shell/shell-provider'
 import {
   deriveTodayStatus,
   findTodayDay,
+  fmtDuration,
   fmtTime,
   isCheckedInNow,
   isInside,
   sortDaysDesc,
+  todayEventsDesc,
   toRows
 } from '@/features/attendance/attendance-utils'
 import { HistoryRow } from '@/features/attendance/history-row'
@@ -36,7 +47,7 @@ function initialsOf(name: string | null | undefined): string {
 export function HomeScreen() {
   const { t, lang } = useI18n()
   const { user } = useAuth()
-  const { openCheckIn, openCheckOut } = useShell()
+  const { openCheckIn, openCheckOut, sites } = useShell()
   const router = useRouter()
 
   const profileQuery = useGetFrontendProfile()
@@ -64,6 +75,19 @@ export function HomeScreen() {
   const notCheckedIn = !isCheckedIn
   const openManual = () =>
     isCheckedIn ? openCheckOut({ manual: true }) : openCheckIn({ manual: true })
+
+  // Live "checked in for" timer: ticks only while checked in, anchored to the
+  // currently open check-in (today's most recent event when isCheckedIn is true).
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!isCheckedIn) return
+    const id = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [isCheckedIn])
+  const openCheckInEvent = isCheckedIn ? (todayEventsDesc(days)[0] ?? null) : null
+  const elapsedSeconds = openCheckInEvent
+    ? Math.max(0, Math.floor((now - new Date(openCheckInEvent.capturedAt).getTime()) / 1000))
+    : 0
 
   const empName = profileUser?.fullName ?? 'Trinity Staff'
   const empId = profileUser?.employeeCode ?? '—'
@@ -149,6 +173,23 @@ export function HomeScreen() {
             <div style={{ fontSize: 11, opacity: 0.78 }}>{t.site_label}</div>
             <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{siteShort}</div>
           </div>
+          <button
+            type="button"
+            onClick={sites.toggle}
+            aria-label={t.view_sites_button}
+            title={t.view_sites_button}
+            className="flex items-center justify-center"
+            style={{
+              width: 44,
+              height: 'auto',
+              flex: 'none',
+              borderRadius: 8,
+              background: 'rgba(255,255,255,.12)',
+              color: '#fff'
+            }}
+          >
+            <Building2 size={18} />
+          </button>
         </div>
       </div>
 
@@ -212,6 +253,19 @@ export function HomeScreen() {
         <div style={{ marginTop: 6, fontSize: 12, color: 'var(--trinity-mfg)' }}>
           {attendanceQuery.isLoading ? t.loading : lastCheckText}
         </div>
+        {openCheckInEvent ? (
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: 'var(--trinity-primary)',
+              fontVariantNumeric: 'tabular-nums'
+            }}
+          >
+            {t.checked_in_duration_prefix} {fmtDuration(elapsedSeconds, lang)}
+          </div>
+        ) : null}
         <div style={{ marginTop: 13, display: 'flex', gap: 10 }}>
           {notCheckedIn ? (
             <button

@@ -1,7 +1,8 @@
 'use client'
 
 import { LogIn, LogOut } from 'lucide-react'
-import type { AttendanceRow } from './attendance-utils'
+import { useI18n } from '@/lib/i18n/i18n-provider'
+import { fmtDuration, type AttendanceRow } from './attendance-utils'
 
 /**
  * One attendance activity row (check-in or check-out). Shared by the Home recent
@@ -9,6 +10,7 @@ import type { AttendanceRow } from './attendance-utils'
  * nudges the paddings to match the slightly larger Attendance variant.
  */
 export function HistoryRow({ row, size = 'sm' }: { row: AttendanceRow; size?: 'sm' | 'md' }) {
+  const { lang } = useI18n()
   const Icon = row.isCheckIn ? LogIn : LogOut
   const iconBg = row.isCheckIn ? 'var(--trinity-primary-l)' : 'var(--trinity-muted)'
   const iconFg = row.isCheckIn ? 'var(--trinity-primary)' : 'var(--trinity-mfg)'
@@ -53,6 +55,7 @@ export function HistoryRow({ row, size = 'sm' }: { row: AttendanceRow; size?: 's
         >
           {row.meta}
           {row.workLocationName ? ` · ${row.workLocationName}` : ''}
+          {row.durationSeconds !== null ? ` · ${fmtDuration(row.durationSeconds, lang)}` : ''}
         </div>
       </div>
       <div style={{ textAlign: 'right' }}>

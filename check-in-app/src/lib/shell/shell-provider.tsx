@@ -32,6 +32,9 @@ export type ShellContextValue = {
   /** Center speed-dial FAB (Capture / Payslip / Settings). */
   fab: ToggleSurface
 
+  /** "My work sites" bottom sheet, opened from the Home site card. */
+  sites: ToggleSurface
+
   /** Real device connectivity (`navigator.onLine`) — drives the net badge and
    *  whether an emergency is sent immediately or queued. */
   online: boolean
@@ -54,6 +57,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [manual, setManual] = useState(false)
   const [sosOpen, setSosOpen] = useState(false)
   const [fabOpen, setFabOpen] = useState(false)
+  const [sitesOpen, setSitesOpen] = useState(false)
   const [online, setOnlineState] = useState(true)
   const [fontScale, setFontScaleState] = useState(DEFAULT_FONT_SCALE)
   const [activeAlert, setActiveAlertState] = useState<AlertState>('none')
@@ -114,6 +118,15 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     [fabOpen]
   )
 
+  const sites = useMemo<ToggleSurface>(
+    () => ({
+      open: sitesOpen,
+      toggle: () => setSitesOpen((prev) => !prev),
+      close: () => setSitesOpen(false)
+    }),
+    [sitesOpen]
+  )
+
   const setActiveAlert = useCallback(
     (state: AlertState, emergencyLogId: string | null = null) => {
       setActiveAlertState(state)
@@ -140,6 +153,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       closeSheet,
       sos,
       fab,
+      sites,
       online,
       fontScale,
       setFontScale,
@@ -155,6 +169,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       closeSheet,
       sos,
       fab,
+      sites,
       online,
       fontScale,
       setFontScale,
