@@ -9,10 +9,7 @@ import {
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { getBangkokDate } from '../attendance/geo.js'
 import { writeAuditLog, writeEventLog } from '../logs/logs.service.js'
-import {
-  findActiveWorkAreaForPoint,
-  listActiveWorkAreasForUser
-} from '../work-locations/work-location-assignment.service.js'
+import { findActiveWorkAreaForPoint } from '../work-locations/work-location-assignment.service.js'
 import type {
   CreateAreaInspectionRequest,
   CreateAreaInspectionUploadUrlRequest,
@@ -343,38 +340,22 @@ export async function listAreaInspections(
 }
 
 /**
- * Site-scoped list for staff: returns the caller's own area inspections captured
- * at any of their active work locations (multi-site aware), not other people's.
- *
- * When the caller has no active work location, their captures are stored with a
- * null work_location_id (which can never match a site filter), so we fall back
- * to scoping by the caller's own reports — otherwise a report would vanish from
- * the author's own log the moment it is saved, even though it persisted.
+ * Personal upload history for staff: every area inspection the caller has ever
+ * captured, scoped only by `userId` — never by site. A capture's
+ * `work_location_id` is whatever geofence its GPS point matched *at capture
+ * time* (often null — area inspections aren't geofence-gated like check-ins),
+ * and the caller's active site assignments can change afterwards (reassigned,
+ * site archived). Filtering this log by *current* active sites would silently
+ * drop past reports that no longer match, even though they persisted fine —
+ * this is "what have I submitted", not a site roster.
  */
 export async function listSiteAreaInspections(input: {
   userId: string
   query: ListSiteAreaInspectionsQuery
 }) {
-  const workLocationIds = (await listActiveWorkAreasForUser(input.userId)).map(
-    (workArea) => workArea.work_location_id
-  )
-
-  if (workLocationIds.length === 0) {
-    return listAreaInspections({
-      page: input.query.page,
-      perPage: input.query.perPage,
-      userId: input.userId,
-      dateFrom: input.query.dateFrom,
-      dateTo: input.query.dateTo,
-      sortBy: 'capturedAt',
-      sortDirection: 'desc'
-    })
-  }
-
   return listAreaInspections({
     page: input.query.page,
     perPage: input.query.perPage,
-    workLocationIds,
     userId: input.userId,
     dateFrom: input.query.dateFrom,
     dateTo: input.query.dateTo,
