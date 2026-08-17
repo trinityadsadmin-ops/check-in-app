@@ -349,7 +349,11 @@ export function CameraCapture({
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                opacity: streamReady ? 1 : 0
+                opacity: streamReady ? 1 : 0,
+                // Mirror the front camera preview like every native camera app does
+                // (users read it as a mirror); the captured photo itself is left
+                // un-mirrored so site-report shots stay true to life.
+                transform: facing === 'user' ? 'scaleX(-1)' : undefined
               }}
             />
             {!streamReady && (
