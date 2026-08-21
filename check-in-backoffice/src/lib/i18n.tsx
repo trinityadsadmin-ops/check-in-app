@@ -122,7 +122,7 @@ const dictionaries = {
     'users.delete': 'Delete user',
     'users.deleteTitle': 'Delete user?',
     'users.deleteDescription':
-      'This removes the user from active use, signs them out on their devices, and unassigns their work locations. Historical records are retained:',
+      'This removes the user from active use, releases their email and employee code for a new account, signs them out on their devices, and unassigns their work locations. Historical records are retained:',
     'users.confirmDelete': 'Delete user',
     'users.toastDeleted': 'User deleted',
     'users.newPassword': 'New password',
@@ -436,7 +436,7 @@ const dictionaries = {
     'users.delete': 'ลบผู้ใช้งาน',
     'users.deleteTitle': 'ลบผู้ใช้งานนี้ใช่หรือไม่?',
     'users.deleteDescription':
-      'ผู้ใช้จะถูกนำออกจากการใช้งาน ออกจากระบบทุกอุปกรณ์ และถูกนำออกจากสถานที่ทำงาน โดยยังเก็บประวัติย้อนหลังไว้:',
+      'ผู้ใช้จะถูกนำออกจากการใช้งาน ปล่อยอีเมลและรหัสพนักงานให้สร้างบัญชีใหม่ได้ ออกจากระบบทุกอุปกรณ์ และถูกนำออกจากสถานที่ทำงาน โดยยังเก็บประวัติย้อนหลังไว้:',
     'users.confirmDelete': 'ลบผู้ใช้งาน',
     'users.toastDeleted': 'ลบผู้ใช้งานแล้ว',
     'users.newPassword': 'รหัสผ่านใหม่',

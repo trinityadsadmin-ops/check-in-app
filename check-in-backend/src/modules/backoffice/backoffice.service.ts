@@ -157,9 +157,72 @@ function isDuplicateEmailError(error: unknown) {
   return (
     code.includes('email') ||
     message.includes('email already') ||
+    message.includes('already registered') ||
     message.includes('already been registered') ||
     message.includes('already exists')
   )
+}
+
+function archivedEmailAddress(userId: string) {
+  return `archived-${userId}@archived.invalid`
+}
+
+async function releaseArchivedEmail(email: string) {
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { data: archivedProfile, error: profileLookupError } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .ilike('email', email)
+    .not('deleted_at', 'is', null)
+    .limit(1)
+    .maybeSingle()
+
+  if (profileLookupError) {
+    throw badRequest('Unable to look up the archived user')
+  }
+
+  if (!archivedProfile) {
+    return false
+  }
+
+  const archivedEmail = archivedEmailAddress(archivedProfile.id)
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(archivedProfile.id, {
+    email: archivedEmail,
+    email_confirm: true
+  })
+
+  if (authError) {
+    throw badRequest('Unable to release the archived user email')
+  }
+
+  const { error: profileUpdateError } = await supabaseAdmin
+    .from('profiles')
+    .update({ email: archivedEmail })
+    .eq('id', archivedProfile.id)
+    .not('deleted_at', 'is', null)
+
+  if (profileUpdateError) {
+    throw badRequest('Unable to update the archived user profile')
+  }
+
+  return true
+}
+
+async function releaseArchivedEmployeeCode(employeeCode: string | undefined) {
+  if (!employeeCode) {
+    return
+  }
+
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ employee_code: null })
+    .eq('employee_code', employeeCode)
+    .not('deleted_at', 'is', null)
+
+  if (error) {
+    throw badRequest('Unable to release the archived employee code')
+  }
 }
 
 function mapRole(row: RoleRow) {
@@ -348,16 +411,36 @@ export async function createBackofficeUser(input: {
     throw badRequest(roleError?.message ?? 'Role was not found')
   }
 
-  const { data: createdUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-    email: input.payload.email,
-    password: input.payload.password,
-    email_confirm: true,
-    user_metadata: {
-      full_name: input.payload.fullName ?? null
+  await releaseArchivedEmployeeCode(input.payload.employeeCode)
+
+  const createUser = () =>
+    supabaseAdmin.auth.admin.createUser({
+      email: input.payload.email,
+      password: input.payload.password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: input.payload.fullName ?? null
+      }
+    })
+
+  let createResult = await createUser()
+
+  if (createResult.error && isDuplicateEmailError(createResult.error)) {
+    const releasedArchivedEmail = await releaseArchivedEmail(input.payload.email)
+
+    if (releasedArchivedEmail) {
+      createResult = await createUser()
     }
-  })
+  }
+
+  const createdUser = createResult.data
+  const createError = createResult.error
 
   if (createError || !createdUser.user) {
+    if (createError && isDuplicateEmailError(createError)) {
+      throw emailAlreadyExists()
+    }
+
     throw badRequest(createError?.message ?? 'Unable to create user')
   }
 
@@ -511,6 +594,21 @@ export async function deleteBackofficeUser(input: {
   }
 
   const supabaseAdmin = requireSupabaseAdmin()
+  await getUserById(input.userId)
+
+  // Supabase Auth keeps an email unique even after the profile is archived.
+  // Move it to an internal tombstone address before archiving so the same email
+  // can be used by a newly created employee account.
+  const archivedEmail = archivedEmailAddress(input.userId)
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(input.userId, {
+    email: archivedEmail,
+    email_confirm: true
+  })
+
+  if (authError) {
+    throw badRequest('Unable to release the archived user email')
+  }
+
   const { data, error } = await supabaseAdmin.rpc('archive_user_profile', {
     p_user_id: input.userId,
     p_actor_user_id: input.actorUserId
