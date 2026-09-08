@@ -60,13 +60,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   })
 
-  // A stored token that the backend rejects (expired/invalid) — drop it.
+  // A stored token that the backend rejects (expired/invalid) — drop it, and
+  // drop every cached query with it so the next account signing in on this
+  // device never renders this account's attendance / inspections.
   useEffect(() => {
     if (meQuery.isError) {
       clearStoredSession()
       setHasSession(false)
+      queryClient.clear()
     }
-  }, [meQuery.isError])
+  }, [meQuery.isError, queryClient])
 
   const clearBlocked = useCallback(() => {
     setBlocked(false)
@@ -107,6 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // no-op and reuse that stale request's promise — when it later resolves 401, the
       // isError effect wipes the session we're about to set.
       await queryClient.cancelQueries({ queryKey: getGetCurrentUserQueryKey() })
+      // Query keys are URL-only (no user id), so anything cached by a previous
+      // account on this device would be served to the new one until it went
+      // stale. Start the new session from an empty cache.
+      queryClient.clear()
       setStoredSession({
         accessToken: response.session.accessToken,
         refreshToken: response.session.refreshToken

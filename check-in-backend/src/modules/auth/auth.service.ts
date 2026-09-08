@@ -1,7 +1,7 @@
 import type { Session, User } from '@supabase/supabase-js'
 import type { Context } from 'hono'
 import { badRequest } from '../../core/errors/http-error.js'
-import { supabase } from '../../db/supabase.js'
+import { createAuthClient } from '../../db/supabase.js'
 import type { AppEnv } from '../../types/hono.js'
 import { enforceDeviceBinding } from './device.service.js'
 import { getProfileForAuthUser, type AppProfile } from './profile.service.js'
@@ -37,7 +37,7 @@ function toSession(session: Session | null) {
 }
 
 export async function signUp(payload: SignUpRequest) {
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await createAuthClient().auth.signUp({
     email: payload.email,
     password: payload.password,
     options: {
@@ -61,7 +61,7 @@ export async function signUp(payload: SignUpRequest) {
 }
 
 export async function signIn(payload: SignInRequest, c?: Context<AppEnv>) {
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await createAuthClient().auth.signInWithPassword({
     email: payload.email,
     password: payload.password
   })
@@ -86,7 +86,12 @@ export async function signIn(payload: SignInRequest, c?: Context<AppEnv>) {
 }
 
 export async function refreshSession(payload: RefreshTokenRequest) {
-  const { data, error } = await supabase.auth.refreshSession({
+  // A dedicated client per call: GoTrueClient single-flights refreshes per
+  // instance (`refreshingDeferred`) and ignores the token argument while one is
+  // in flight, so a shared client can hand a concurrent caller another user's
+  // session. It also keeps the last session in memory and tries to refresh it
+  // first once it expires, replaying other users' stale refresh tokens.
+  const { data, error } = await createAuthClient().auth.refreshSession({
     refresh_token: payload.refreshToken
   })
 

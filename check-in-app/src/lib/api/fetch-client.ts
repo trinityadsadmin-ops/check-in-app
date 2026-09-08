@@ -52,6 +52,30 @@ async function rawFetch(url: string, options: RequestInit) {
  */
 let refreshPromise: Promise<boolean> | null = null
 
+/**
+ * Reads the `sub` (user id) claim from a Supabase access token without
+ * verifying it. Verification is the backend's job; here we only need to know
+ * which account a token *claims* to be, to detect a session swap.
+ */
+function getTokenSubject(token: string): string | null {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) {
+      return null
+    }
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const json = JSON.parse(atob(base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')))
+    return typeof json?.sub === 'string' ? json.sub : null
+  } catch {
+    return null
+  }
+}
+
+type RefreshResponse = {
+  user?: { id?: string } | null
+  session?: { accessToken: string; refreshToken: string } | null
+} | null
+
 async function refreshAccessToken(): Promise<boolean> {
   const session = getStoredSession()
   if (!session) {
@@ -66,9 +90,19 @@ async function refreshAccessToken(): Promise<boolean> {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken: session.refreshToken })
         })
-        const newSession = (data as { session?: { accessToken: string; refreshToken: string } | null } | null)
-          ?.session
+        const payload = data as RefreshResponse
+        const newSession = payload?.session
         if (!response.ok || !newSession) {
+          return false
+        }
+        // A refreshed session must belong to the same account as the one it
+        // replaces. If it doesn't, never adopt it: drop the session and let the
+        // caller's 401 path force a clean re-login instead of silently turning
+        // this device into someone else's account.
+        const expectedUserId = getTokenSubject(session.accessToken)
+        const receivedUserId = payload?.user?.id ?? getTokenSubject(newSession.accessToken)
+        if (expectedUserId && receivedUserId && expectedUserId !== receivedUserId) {
+          clearStoredSession()
           return false
         }
         setStoredSession({ accessToken: newSession.accessToken, refreshToken: newSession.refreshToken })
