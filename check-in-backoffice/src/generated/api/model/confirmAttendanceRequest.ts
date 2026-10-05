@@ -5,6 +5,7 @@
  * Check-in backend API for shared auth, frontend, and backoffice clients.
  * OpenAPI spec version: 0.1.0
  */
+import type { SupervisorInspectionEntry } from './supervisorInspectionEntry';
 
 export interface ConfirmAttendanceRequest {
   pendingUploadId?: string;
@@ -26,4 +27,6 @@ export interface ConfirmAttendanceRequest {
    */
   manualReason?: string;
   workAreaId?: string;
+  /** @minItems 1 */
+  supervisorInspection?: SupervisorInspectionEntry[];
 }

@@ -16,9 +16,17 @@ import {
 import { ApiError } from '@/lib/api/fetch-client'
 import { closestByCentroid } from '@/lib/geo/distance'
 import { useGeolocation } from '@/lib/geo/use-geolocation'
+import { useAuth } from '@/lib/auth/auth-provider'
 import { useI18n } from '@/lib/i18n/i18n-provider'
 import { useShell } from '@/lib/shell/shell-provider'
 import { latestWorkArea, pointInPolygon } from '@/features/attendance/attendance-utils'
+import {
+  SUPERVISOR_INSPECTION_PERMISSION,
+  isInspectionComplete,
+  toInspectionPayload,
+  type InspectionSelection
+} from '@/features/attendance/supervisor-inspection'
+import { SupervisorInspectionDialog } from './supervisor-inspection-dialog'
 
 // Default centre when the user has no history and no fix yet (central Bangkok).
 const FALLBACK_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 }
@@ -36,8 +44,13 @@ export function CheckInSheet() {
   const { sheet, manual, closeSheet } = useShell()
   const { coords, status, request } = useGeolocation()
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [reason, setReason] = useState('')
   const [siteId, setSiteId] = useState('')
+  const [inspectionOpen, setInspectionOpen] = useState(false)
+
+  // Supervisors must record what they inspected before a check-in is sent.
+  const isSupervisor = user?.permissions.includes(SUPERVISOR_INSPECTION_PERMISSION) ?? false
 
   const isOpen = sheet === 'in' || sheet === 'out'
 
@@ -113,6 +126,7 @@ export function CheckInSheet() {
       setIsDragging(false)
       setReason('')
       setSiteId('')
+      setInspectionOpen(false)
     }
   }, [isOpen])
 
@@ -185,7 +199,8 @@ export function CheckInSheet() {
     : !!position && !submitting && status !== 'locating'
 
   // Confirm location → submit the check-in/out punch directly (no photo).
-  const onConfirm = async () => {
+  // Supervisors checking in get the inspection pop-up first; it calls submit().
+  const onConfirm = () => {
     if (!manual && !position) {
       toast.error(t.locating)
       request()
@@ -199,12 +214,29 @@ export function CheckInSheet() {
       toast.error(t.manual_site_required)
       return
     }
+    if (sheet === 'in' && isSupervisor) {
+      setInspectionOpen(true)
+      return
+    }
+    void submit()
+  }
+
+  const onInspectionSubmit = (selection: InspectionSelection) => {
+    if (!isInspectionComplete(selection)) {
+      toast.error(t.inspection_required)
+      return
+    }
+    void submit(selection)
+  }
+
+  const submit = async (inspection?: InspectionSelection) => {
     setSubmitting(true)
     try {
       const body = {
         ...(position ? { lat: position.lat, lng: position.lng } : {}),
         capturedAt: new Date().toISOString(),
-        ...(manual ? { isManual: true, manualReason: reason.trim(), workAreaId: siteId } : {})
+        ...(manual ? { isManual: true, manualReason: reason.trim(), workAreaId: siteId } : {}),
+        ...(inspection ? { supervisorInspection: toInspectionPayload(inspection) } : {})
       }
       if (sheet === 'in') {
         await checkInMutation.mutateAsync({ data: body })
@@ -216,6 +248,7 @@ export function CheckInSheet() {
         predicate: (q) => q.queryKey[0] === '/api/frontend/attendance'
       })
       toast.success(t.t_saved)
+      setInspectionOpen(false)
       closeSheet()
     } catch (error) {
       if (error instanceof ApiError && error.status === 403) {
@@ -484,7 +517,7 @@ export function CheckInSheet() {
           </button>
           <button
             type="button"
-            onClick={() => void onConfirm()}
+            onClick={onConfirm}
             disabled={!canConfirm}
             className="flex items-center justify-center"
             style={{
@@ -508,6 +541,13 @@ export function CheckInSheet() {
           </button>
         </div>
       </div>
+      {inspectionOpen ? (
+        <SupervisorInspectionDialog
+          submitting={submitting}
+          onCancel={() => setInspectionOpen(false)}
+          onSubmit={onInspectionSubmit}
+        />
+      ) : null}
     </div>
   )
 }

@@ -8,6 +8,7 @@
 import type { AttendanceEventType } from './attendanceEventType';
 import type { AttendanceEventValidationStatus } from './attendanceEventValidationStatus';
 import type { AttendanceEventWorkAreaSnapshot } from './attendanceEventWorkAreaSnapshot';
+import type { SupervisorInspectionEntry } from './supervisorInspectionEntry';
 
 /**
  * @nullable
@@ -33,6 +34,8 @@ export type AttendanceEvent = {
   manualReason: string | null;
   /** @nullable */
   durationSeconds: number | null;
+  /** @nullable */
+  supervisorInspection: SupervisorInspectionEntry[] | null;
   capturedAt: string;
   createdAt: string;
 } | null;

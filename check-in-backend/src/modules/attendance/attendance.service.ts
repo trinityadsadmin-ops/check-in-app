@@ -8,6 +8,7 @@ import {
   listActiveWorkAreasForUser
 } from '../work-locations/work-location-assignment.service.js'
 import { getBangkokDate, type LatLngNode } from './geo.js'
+import { resolveSupervisorInspection, type SupervisorInspection } from './supervisor-inspection.js'
 import type {
   AttendanceEventType,
   ConfirmAttendanceRequest,
@@ -48,6 +49,7 @@ type AttendanceEventRow = {
   is_manual: boolean
   manual_reason: string | null
   duration_seconds: number | string | null
+  supervisor_inspection: SupervisorInspection | null
   captured_at: string
   created_at: string
 }
@@ -106,6 +108,7 @@ function mapEvent(row: AttendanceEventRow, photoUrl: string | null) {
     isManual: row.is_manual,
     manualReason: row.manual_reason,
     durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+    supervisorInspection: row.supervisor_inspection,
     capturedAt: row.captured_at,
     createdAt: row.created_at
   }
@@ -356,8 +359,20 @@ export async function confirmAttendance(input: {
   userId: string
   eventType: AttendanceEventType
   payload: ConfirmAttendanceRequest
+  /** Whether the user holds `mobile:supervisor_inspection`. */
+  isSupervisor: boolean
   c?: Context<AppEnv> | undefined
 }) {
+  // Validate before any side effect so a rejected punch leaves nothing behind.
+  const inspection = resolveSupervisorInspection({
+    eventType: input.eventType,
+    isSupervisor: input.isSupervisor,
+    inspection: input.payload.supervisorInspection
+  })
+  if (!inspection.ok) {
+    throw inspection.status === 403 ? forbidden(inspection.message) : badRequest(inspection.message)
+  }
+
   await assertAttendanceActionAllowed(input.userId, input.eventType)
 
   const supabaseAdmin = requireSupabaseAdmin()
@@ -490,9 +505,10 @@ export async function confirmAttendance(input: {
       is_manual: isManual,
       manual_reason: isManual ? (input.payload.manualReason as string).trim() : null,
       ...(durationSeconds !== undefined ? { duration_seconds: durationSeconds } : {}),
+      ...(inspection.value ? { supervisor_inspection: inspection.value } : {}),
       captured_at: capturedAt
     })
-    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,duration_seconds,captured_at,created_at')
+    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,duration_seconds,supervisor_inspection,captured_at,created_at')
     .single()
 
   if (eventInsert.error || !eventInsert.data) {
@@ -542,7 +558,8 @@ export async function confirmAttendance(input: {
       point,
       isManual,
       manualReason: isManual ? input.payload.manualReason : null,
-      workAreaId: isManual ? workArea?.id : null
+      workAreaId: isManual ? workArea?.id : null,
+      supervisorInspection: inspection.value
     },
     c: input.c
   })
@@ -561,7 +578,7 @@ async function getAttendanceEventsForDay(attendanceDayId: string) {
   const supabaseAdmin = requireSupabaseAdmin()
   const { data, error } = await supabaseAdmin
     .from('attendance_events')
-    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,duration_seconds,captured_at,created_at')
+    .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,duration_seconds,supervisor_inspection,captured_at,created_at')
     .eq('attendance_day_id', attendanceDayId)
 
   if (error) {
@@ -628,7 +645,7 @@ export async function listAttendance(query: ListAttendanceQuery) {
   if (days.length > 0) {
     const { data: events, error: eventsError } = await supabaseAdmin
       .from('attendance_events')
-      .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,duration_seconds,captured_at,created_at')
+      .select('id,attendance_day_id,user_id,event_type,lat,lng,photo_path,validation_status,validation_reason,work_area_snapshot,is_manual,manual_reason,duration_seconds,supervisor_inspection,captured_at,created_at')
       .in(
         'attendance_day_id',
         days.map((day) => day.id)

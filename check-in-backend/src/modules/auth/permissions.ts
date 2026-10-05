@@ -22,7 +22,8 @@ export const permissions = {
   emergencyRead: 'emergency:read',
   emergencyUpdate: 'emergency:update',
   mobileAttendance: 'mobile:attendance',
-  mobileEmergency: 'mobile:emergency'
+  mobileEmergency: 'mobile:emergency',
+  mobileSupervisorInspection: 'mobile:supervisor_inspection'
 } as const
 
 export type PermissionKey = (typeof permissions)[keyof typeof permissions]

@@ -560,6 +560,13 @@
             "type": "integer",
             "nullable": true
           },
+          "supervisorInspection": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/SupervisorInspectionEntry"
+            }
+          },
           "capturedAt": {
             "type": "string",
             "format": "date-time"
@@ -582,6 +589,7 @@
           "isManual",
           "manualReason",
           "durationSeconds",
+          "supervisorInspection",
           "capturedAt",
           "createdAt"
         ]
@@ -603,6 +611,36 @@
         "required": [
           "lat",
           "lng"
+        ]
+      },
+      "SupervisorInspectionEntry": {
+        "type": "object",
+        "properties": {
+          "position": {
+            "type": "string",
+            "enum": [
+              "PC",
+              "BA",
+              "ROADSHOW"
+            ]
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "START_SHIFT",
+                "BEFORE_BREAK",
+                "AFTER_BREAK",
+                "END_SHIFT"
+              ]
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "position",
+          "slots"
         ]
       },
       "ListFrontendPayslipsResponse": {
@@ -1040,6 +1078,13 @@
           "workAreaId": {
             "type": "string",
             "format": "uuid"
+          },
+          "supervisorInspection": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupervisorInspectionEntry"
+            },
+            "minItems": 1
           }
         }
       },

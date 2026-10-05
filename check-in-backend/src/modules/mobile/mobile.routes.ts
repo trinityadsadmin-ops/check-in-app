@@ -145,6 +145,7 @@ mobileRoutes.openapi(checkInRoute, async (c) => {
       userId: c.get('currentUser').id,
       eventType: 'CHECK_IN',
       payload: c.req.valid('json'),
+      isSupervisor: c.get('currentUser').permissions.includes(permissions.mobileSupervisorInspection),
       c
     }),
     201
@@ -186,6 +187,7 @@ mobileRoutes.openapi(checkOutRoute, async (c) => {
       userId: c.get('currentUser').id,
       eventType: 'CHECK_OUT',
       payload: c.req.valid('json'),
+      isSupervisor: c.get('currentUser').permissions.includes(permissions.mobileSupervisorInspection),
       c
     }),
     201

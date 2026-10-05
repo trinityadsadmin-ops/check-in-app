@@ -53,6 +53,7 @@ import type {
   AttendanceDayReviewStatus,
   AttendanceEvent,
   ListAttendanceParams,
+  SupervisorInspectionEntry,
   WorkLocation
 } from '@/generated/api/model'
 import { UserCombobox } from '@/features/users/user-combobox'
@@ -144,6 +145,25 @@ function formatDuration(totalSeconds: number | null, locale: Locale) {
   return [hours > 0 ? hourLabel : null, hours === 0 || minutes > 0 ? minuteLabel : null]
     .filter(Boolean)
     .join(' ')
+}
+
+const inspectionPositionLabels: Record<SupervisorInspectionEntry['position'], string> = {
+  PC: 'PC',
+  BA: 'BA',
+  ROADSHOW: 'Roadshow'
+}
+
+/** One line per inspected position, e.g. "PC: Start of shift, Before break". */
+function formatInspectionLines(
+  inspection: SupervisorInspectionEntry[] | null | undefined,
+  t: (key: string) => string
+) {
+  return (inspection ?? []).map(
+    (entry) =>
+      `${inspectionPositionLabels[entry.position]}: ${entry.slots
+        .map((slot) => t(`attendance.inspectionSlot.${slot}`))
+        .join(', ')}`
+  )
 }
 
 function getEmployeeLabel(day: { user: { fullName: string | null; email: string | null } | null; userId: string }) {
@@ -366,6 +386,7 @@ export function AttendancePage() {
             [t('attendance.checkOut')]: formatTime(visit.checkOut?.capturedAt, locale),
             [t('attendance.checkOutComment')]: visit.checkOut?.manualReason ?? '',
             [t('attendance.duration')]: formatDuration(getVisitDurationSeconds(visit), locale),
+            [t('attendance.inspection')]: formatInspectionLines(visit.checkIn?.supervisorInspection, t).join('\n'),
             [t('common.status')]: t(translateStatusKey(day.reviewStatus))
           }))
         )
@@ -601,6 +622,7 @@ export function AttendancePage() {
                   <SortableHead label={t('attendance.checkIn')} value="checkIn" />
                   <SortableHead label={t('attendance.checkOut')} value="checkOut" />
                   <TableHead>{t('attendance.duration')}</TableHead>
+                  <TableHead>{t('attendance.inspection')}</TableHead>
                   <SortableHead label={t('common.status')} value="reviewStatus" />
                   <TableHead className="w-48 text-right">{t('attendance.review')}</TableHead>
                 </TableRow>
@@ -701,6 +723,17 @@ export function AttendancePage() {
                       </TableCell>
                       <TableCell className="whitespace-nowrap tabular-nums">
                         {formatDuration(getVisitDurationSeconds(visit), locale)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {visit.checkIn?.supervisorInspection?.length ? (
+                          <div className="grid gap-1">
+                            {formatInspectionLines(visit.checkIn.supervisorInspection, t).map((line) => (
+                              <span key={line} className="whitespace-nowrap">{line}</span>
+                            ))}
+                          </div>
+                        ) : (
+                          '-'
+                        )}
                       </TableCell>
                       {index === 0 ? (
                         <TableCell rowSpan={visits.length} className="align-top">

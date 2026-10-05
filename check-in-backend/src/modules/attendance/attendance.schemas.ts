@@ -1,5 +1,6 @@
 import { z } from '@hono/zod-openapi'
 import { LatLngNodeSchema } from '../backoffice/backoffice.schemas.js'
+import { SupervisorInspectionEntrySchema, SupervisorInspectionSchema } from './supervisor-inspection.js'
 
 export const AttendanceEventTypeSchema = z.enum(['CHECK_IN', 'CHECK_OUT'])
 export const AttendanceReviewStatusSchema = z.enum(['PENDING', 'APPROVED', 'REJECTED'])
@@ -32,7 +33,10 @@ export const ConfirmAttendanceRequestSchema = z
      *  and an explicit workAreaId (one of the employee's accessible sites). */
     isManual: z.boolean().optional(),
     manualReason: z.string().trim().min(1).max(500).optional(),
-    workAreaId: z.string().uuid().optional()
+    workAreaId: z.string().uuid().optional(),
+    /** Check-in only, and required for users with `mobile:supervisor_inspection`:
+     *  the staff positions inspected and the shift moments for each. */
+    supervisorInspection: SupervisorInspectionSchema.optional()
   })
   .openapi('ConfirmAttendanceRequest')
 
@@ -57,6 +61,8 @@ export const AttendanceEventSchema = z
     manualReason: z.string().nullable(),
     /** How long the check-in this closes lasted, in seconds. Only set on CHECK_OUT events. */
     durationSeconds: z.number().int().nullable(),
+    /** Supervisor check-ins only: inspected positions and their shift moments. */
+    supervisorInspection: z.array(SupervisorInspectionEntrySchema).nullable(),
     capturedAt: z.string().datetime(),
     createdAt: z.string().datetime()
   })
