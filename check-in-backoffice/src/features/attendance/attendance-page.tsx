@@ -59,7 +59,7 @@ import { UserCombobox } from '@/features/users/user-combobox'
 import { usePermissions } from '@/hooks/use-permissions'
 import { listAttendance, listWorkLocations, reviewAttendance } from '@/lib/api/backoffice'
 import { getErrorMessage } from '@/lib/api/errors'
-import { translateStatusKey, useI18n } from '@/lib/i18n'
+import { translateStatusKey, useI18n, type Locale } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 type ReviewStatusFilter = '' | AttendanceDayReviewStatus
@@ -98,6 +98,52 @@ function formatLocation(lat?: number, lng?: number) {
   }
 
   return `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+}
+
+/**
+ * Seconds between a visit's check-in and check-out. Prefers the duration the
+ * backend stored on the check-out; check-outs recorded before that column
+ * existed fall back to the gap between the two captured times.
+ */
+function getVisitDurationSeconds(visit: AttendanceVisit) {
+  if (!visit.checkOut) {
+    return null
+  }
+
+  if (visit.checkOut.durationSeconds !== null) {
+    return visit.checkOut.durationSeconds
+  }
+
+  if (!visit.checkIn) {
+    return null
+  }
+
+  const elapsedMs =
+    new Date(visit.checkOut.capturedAt).getTime() - new Date(visit.checkIn.capturedAt).getTime()
+
+  return Math.max(0, Math.round(elapsedMs / 1000))
+}
+
+/** Format a duration as "1h 20m" / "1 ชม. 20 นาที", matching the mobile app. */
+function formatDuration(totalSeconds: number | null, locale: Locale) {
+  if (totalSeconds === null) {
+    return '-'
+  }
+
+  const totalMinutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (hours === 0 && minutes === 0) {
+    return locale === 'th' ? 'น้อยกว่า 1 นาที' : '<1m'
+  }
+
+  const hourLabel = locale === 'th' ? `${hours} ชม.` : `${hours}h`
+  const minuteLabel = locale === 'th' ? `${minutes} นาที` : `${minutes}m`
+
+  return [hours > 0 ? hourLabel : null, hours === 0 || minutes > 0 ? minuteLabel : null]
+    .filter(Boolean)
+    .join(' ')
 }
 
 function getEmployeeLabel(day: { user: { fullName: string | null; email: string | null } | null; userId: string }) {
@@ -319,6 +365,7 @@ export function AttendancePage() {
             [t('attendance.checkInComment')]: visit.checkIn?.manualReason ?? '',
             [t('attendance.checkOut')]: formatTime(visit.checkOut?.capturedAt, locale),
             [t('attendance.checkOutComment')]: visit.checkOut?.manualReason ?? '',
+            [t('attendance.duration')]: formatDuration(getVisitDurationSeconds(visit), locale),
             [t('common.status')]: t(translateStatusKey(day.reviewStatus))
           }))
         )
@@ -553,6 +600,7 @@ export function AttendancePage() {
                   <SortableHead label={t('attendance.workLocation')} value="workLocation" />
                   <SortableHead label={t('attendance.checkIn')} value="checkIn" />
                   <SortableHead label={t('attendance.checkOut')} value="checkOut" />
+                  <TableHead>{t('attendance.duration')}</TableHead>
                   <SortableHead label={t('common.status')} value="reviewStatus" />
                   <TableHead className="w-48 text-right">{t('attendance.review')}</TableHead>
                 </TableRow>
@@ -650,6 +698,9 @@ export function AttendancePage() {
                             {t('common.photo')} <ExternalLink className="size-3" />
                           </a>
                         ) : null}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums">
+                        {formatDuration(getVisitDurationSeconds(visit), locale)}
                       </TableCell>
                       {index === 0 ? (
                         <TableCell rowSpan={visits.length} className="align-top">
