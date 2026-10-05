@@ -283,6 +283,9 @@ export function CheckInSheet() {
           animation: 'rm-sheet .28s cubic-bezier(.16,1,.3,1)',
           maxHeight: '92%',
           overflowY: 'auto',
+          // Contain Leaflet's internal z-indexes (panes 400, controls 1000) so
+          // overlays above the sheet, like the supervisor inspection pop-up, aren't covered by the map.
+          isolation: 'isolate',
           transform: dragY ? `translateY(${dragY}px)` : undefined,
           transition: isDragging ? 'none' : 'transform .25s cubic-bezier(.16,1,.3,1)'
         }}
