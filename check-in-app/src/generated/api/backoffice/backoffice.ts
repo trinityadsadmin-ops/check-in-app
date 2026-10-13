@@ -61,6 +61,7 @@ import type {
   ListSalaryUploadsParams,
   ListSalaryUploadsResponse,
   ListUsersResponse,
+  ListWorkLocationsParams,
   ListWorkLocationsResponse,
   ResetDeviceRequest,
   ResetDeviceResponse,
@@ -953,17 +954,24 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
       return useMutation(mutationOptions , queryClient);
     }
-    export const getListWorkLocationsUrl = () => {
+    export const getListWorkLocationsUrl = (params?: ListWorkLocationsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/work-locations`
+  return stringifiedParams.length > 0 ? `/api/backoffice/work-locations?${stringifiedParams}` : `/api/backoffice/work-locations`
 }
 
-export const listWorkLocations = async ( options?: RequestInit): Promise<ListWorkLocationsResponse> => {
+export const listWorkLocations = async (params?: ListWorkLocationsParams, options?: RequestInit): Promise<ListWorkLocationsResponse> => {
 
-  return customFetch<ListWorkLocationsResponse>(getListWorkLocationsUrl(),
+  return customFetch<ListWorkLocationsResponse>(getListWorkLocationsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -974,21 +982,21 @@ export const listWorkLocations = async ( options?: RequestInit): Promise<ListWor
 
 
 
-export const getListWorkLocationsQueryKey = () => {
-    return [`/api/backoffice/work-locations`] as const;
+export const getListWorkLocationsQueryKey = (params?: ListWorkLocationsParams,) => {
+    return [`/api/backoffice/work-locations`, ...(params ? [params]: [])] as const;
     }
 
 
-export const getListWorkLocationsQueryOptions = <TData = Awaited<ReturnType<typeof listWorkLocations>>, TError = ErrorResponse | ErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkLocations>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getListWorkLocationsQueryOptions = <TData = Awaited<ReturnType<typeof listWorkLocations>>, TError = ErrorResponse | ErrorResponse>(params?: ListWorkLocationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkLocations>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListWorkLocationsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListWorkLocationsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkLocations>>> = ({ signal }) => listWorkLocations({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkLocations>>> = ({ signal }) => listWorkLocations(params, { signal, ...requestOptions });
 
 
 
@@ -1002,7 +1010,7 @@ export type ListWorkLocationsQueryError = ErrorResponse | ErrorResponse
 
 
 export function useListWorkLocations<TData = Awaited<ReturnType<typeof listWorkLocations>>, TError = ErrorResponse | ErrorResponse>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkLocations>>, TError, TData>> & Pick<
+ params: undefined |  ListWorkLocationsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkLocations>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listWorkLocations>>,
           TError,
@@ -1012,7 +1020,7 @@ export function useListWorkLocations<TData = Awaited<ReturnType<typeof listWorkL
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListWorkLocations<TData = Awaited<ReturnType<typeof listWorkLocations>>, TError = ErrorResponse | ErrorResponse>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkLocations>>, TError, TData>> & Pick<
+ params?: ListWorkLocationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkLocations>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listWorkLocations>>,
           TError,
@@ -1022,16 +1030,16 @@ export function useListWorkLocations<TData = Awaited<ReturnType<typeof listWorkL
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListWorkLocations<TData = Awaited<ReturnType<typeof listWorkLocations>>, TError = ErrorResponse | ErrorResponse>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkLocations>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ params?: ListWorkLocationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkLocations>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useListWorkLocations<TData = Awaited<ReturnType<typeof listWorkLocations>>, TError = ErrorResponse | ErrorResponse>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkLocations>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ params?: ListWorkLocationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkLocations>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListWorkLocationsQueryOptions(options)
+  const queryOptions = getListWorkLocationsQueryOptions(params,options)
 
   const query = useQuery(queryOptions , queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

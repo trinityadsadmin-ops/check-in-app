@@ -247,7 +247,7 @@ export function AttendancePage() {
   const [isExporting, setIsExporting] = useState(false)
   const workLocationsQuery = useQuery({
     queryKey: ['work-locations'],
-    queryFn: listWorkLocations
+    queryFn: () => listWorkLocations()
   })
   const selectedWorkLocation = useMemo(
     () =>

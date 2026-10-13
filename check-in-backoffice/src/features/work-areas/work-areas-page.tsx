@@ -1,7 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Save, Trash2 } from 'lucide-react'
+import { Loader2, Plus, Save, Search, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { EmptyState } from '@/components/data/empty-state'
@@ -41,7 +41,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import type { LatLngNode } from '@/generated/api/model'
+import type { LatLngNode, WorkLocation } from '@/generated/api/model'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { usePermissions } from '@/hooks/use-permissions'
 import {
   createWorkLocation,
@@ -74,6 +75,9 @@ export function WorkAreasPage() {
   const [createDescription, setCreateDescription] = useState('')
   const [createAreaNodes, setCreateAreaNodes] = useState<LatLngNode[]>(getDefaultAreaNodes())
   const [selectedLocationId, setSelectedLocationId] = useState('')
+  const [managedLocation, setManagedLocation] = useState<WorkLocation | null>(null)
+  const [locationSearch, setLocationSearch] = useState('')
+  const debouncedLocationSearch = useDebouncedValue(locationSearch.trim(), 300)
   const [isManageSheetOpen, setIsManageSheetOpen] = useState(false)
   const [isDisableConfirmOpen, setIsDisableConfirmOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
@@ -83,8 +87,11 @@ export function WorkAreasPage() {
   const [selectedUserId, setSelectedUserId] = useState('')
 
   const locationsQuery = useQuery({
-    queryKey: ['work-locations'],
-    queryFn: listWorkLocations
+    queryKey: ['work-locations', { search: debouncedLocationSearch }],
+    queryFn: ({ signal }) => listWorkLocations(
+      debouncedLocationSearch ? { search: debouncedLocationSearch } : {},
+      signal
+    )
   })
   const workLocations = useMemo(
     () =>
@@ -94,8 +101,10 @@ export function WorkAreasPage() {
     [locationsQuery.data?.workLocations]
   )
   const selectedLocation = useMemo(
-    () => workLocations.find((location) => location.id === selectedLocationId) ?? null,
-    [selectedLocationId, workLocations]
+    () => managedLocation?.id === selectedLocationId
+      ? managedLocation
+      : workLocations.find((location) => location.id === selectedLocationId) ?? null,
+    [managedLocation, selectedLocationId, workLocations]
   )
   const locationUsersQuery = useQuery({
     queryKey: ['work-location-users', selectedLocationId],
@@ -157,7 +166,8 @@ export function WorkAreasPage() {
         description: locationDescription || null,
         areaNodes
       }),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      setManagedLocation(response.workLocation)
       queryClient.invalidateQueries({ queryKey: ['work-locations'] })
       queryClient.invalidateQueries({ queryKey: ['work-location-users', selectedLocationId] })
       toast.success(t('workAreas.toastLocationUpdated'))
@@ -169,7 +179,8 @@ export function WorkAreasPage() {
       updateWorkLocation(selectedLocationId, {
         isActive: !selectedLocation?.isActive
       }),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      setManagedLocation(response.workLocation)
       queryClient.invalidateQueries({ queryKey: ['work-locations'] })
       toast.success(t('workAreas.toastLocationUpdated'))
     },
@@ -212,9 +223,9 @@ export function WorkAreasPage() {
   })
 
   return (
-    <div className="grid gap-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
+    <div className="grid min-w-0 gap-6">
+      <Card className="min-w-0">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
           <CardTitle>{t('workAreas.locationsTitle')}</CardTitle>
           {canManageWorkAreas ? (
             <Sheet open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -283,6 +294,24 @@ export function WorkAreasPage() {
           ) : null}
         </CardHeader>
         <CardContent>
+          <div className="mb-4 grid w-full gap-2 sm:max-w-sm">
+            <Label htmlFor="work-location-search">{t('workAreas.searchLocations')}</Label>
+            <div className="relative">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" />
+              <Input
+                id="work-location-search"
+                type="search"
+                className="pl-9 pr-9"
+                placeholder={t('workAreas.searchLocationsPlaceholder')}
+                value={locationSearch}
+                onChange={(event) => setLocationSearch(event.target.value)}
+                maxLength={200}
+              />
+              {locationsQuery.isFetching ? (
+                <Loader2 role="status" aria-label={t('common.loading')} className="pointer-events-none absolute right-3 top-3 size-4 animate-spin text-muted-foreground" />
+              ) : null}
+            </div>
+          </div>
           {locationsQuery.isLoading ? <TableSkeleton rows={3} /> : null}
           {locationsQuery.isError ? <ErrorBanner error={locationsQuery.error} /> : null}
           {locationsQuery.data ? (
@@ -317,6 +346,7 @@ export function WorkAreasPage() {
                           variant={location.id === selectedLocationId ? 'secondary' : 'outline'}
                           size="sm"
                           onClick={() => {
+                            setManagedLocation(location)
                             setSelectedLocationId(location.id)
                             setIsManageSheetOpen(true)
                           }}
@@ -329,7 +359,7 @@ export function WorkAreasPage() {
                 </TableBody>
               </Table>
             ) : (
-              <EmptyState label={t('workAreas.emptyLocations')} />
+              <EmptyState label={t(debouncedLocationSearch ? 'workAreas.noMatchingLocations' : 'workAreas.emptyLocations')} />
             )
           ) : null}
         </CardContent>
@@ -340,6 +370,7 @@ export function WorkAreasPage() {
         onOpenChange={(open) => {
           setIsManageSheetOpen(open)
           if (!open) {
+            setManagedLocation(null)
             setSelectedLocationId('')
           }
         }}

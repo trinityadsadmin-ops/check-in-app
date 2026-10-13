@@ -72,6 +72,7 @@ import type {
   ListRolesResponse,
   ListUsersResponse,
   ListWorkLocationsResponse,
+  ListWorkLocationsParams,
   ResetDeviceResponse,
   ReviewAttendanceRequest,
   ReviewAreaInspectionRequest,
@@ -144,8 +145,8 @@ export function setUserPermissionOverrides(
   })
 }
 
-export function listWorkLocations() {
-  return fetchJson<ListWorkLocationsResponse>(getListWorkLocationsUrl())
+export function listWorkLocations(params: ListWorkLocationsParams = {}, signal?: AbortSignal) {
+  return fetchJson<ListWorkLocationsResponse>(getListWorkLocationsUrl(params), signal ? { signal } : {})
 }
 
 export function createWorkLocation(payload: CreateWorkLocationRequest) {

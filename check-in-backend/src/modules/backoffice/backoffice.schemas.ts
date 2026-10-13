@@ -20,6 +20,10 @@ export const ListUsersQuerySchema = z.object({
   search: z.string().trim().min(1).optional()
 })
 
+export const ListWorkLocationsQuerySchema = z.object({
+  search: z.string().trim().max(200).optional()
+})
+
 export const RoleSchema = z
   .object({
     id: z.string().uuid(),

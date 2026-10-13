@@ -4196,6 +4196,17 @@
         "tags": [
           "Backoffice"
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Work locations list",

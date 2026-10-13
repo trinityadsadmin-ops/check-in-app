@@ -79,6 +79,7 @@ import {
   ListUsersQuerySchema,
   ListUsersResponseSchema,
   ListWorkLocationsResponseSchema,
+  ListWorkLocationsQuerySchema,
   LogsQuerySchema,
   ResetDeviceRequestSchema,
   ResetDeviceResponseSchema,
@@ -535,6 +536,7 @@ const listWorkLocationsRoute = createRoute({
   path: '/work-locations',
   operationId: 'listWorkLocations',
   tags: ['Backoffice'],
+  request: { query: ListWorkLocationsQuerySchema },
   responses: {
     200: {
       description: 'Work locations list',
@@ -550,7 +552,7 @@ const listWorkLocationsRoute = createRoute({
 
 backofficeRoutes.openapi(listWorkLocationsRoute, async (c) => {
   ensurePermission(c, permissions.workAreasRead)
-  return c.json(await listWorkLocations(), 200)
+  return c.json(await listWorkLocations(c.req.valid('query')), 200)
 })
 
 const createWorkLocationRoute = createRoute({

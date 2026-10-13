@@ -115,6 +115,7 @@ export * from './listSalaryUploadsResponse';
 export * from './listSalaryUploadsStatus';
 export * from './listSiteAreaInspectionsParams';
 export * from './listUsersResponse';
+export * from './listWorkLocationsParams';
 export * from './listWorkLocationsResponse';
 export * from './permission';
 export * from './refreshTokenRequest';

@@ -208,7 +208,7 @@ export function UsersTable() {
   })
   const workLocationsQuery = useQuery({
     queryKey: ['work-locations'],
-    queryFn: listWorkLocations,
+    queryFn: () => listWorkLocations(),
     enabled: Boolean(viewedWorkAreaUser) && canReadWorkAreas
   })
   const createMutation = useMutation({

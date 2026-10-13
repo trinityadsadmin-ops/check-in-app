@@ -865,13 +865,20 @@ export async function resetUserDevice(input: {
   return resetDeviceBinding(input)
 }
 
-export async function listWorkLocations() {
+export async function listWorkLocations(query: { search?: string | undefined } = {}) {
   const supabaseAdmin = requireSupabaseAdmin()
-  const { data, error } = await supabaseAdmin
+  let request = supabaseAdmin
     .from('work_locations')
     .select('id,name,description,area_nodes,is_active,created_at')
     .is('deleted_at', null)
     .order('name', { ascending: true })
+
+  if (query.search) {
+    const literalSearch = query.search.replace(/[\\%_]/g, '\\$&')
+    request = request.ilike('name', `%${literalSearch}%`)
+  }
+
+  const { data, error } = await request
 
   if (error) {
     throw badRequest(error.message)

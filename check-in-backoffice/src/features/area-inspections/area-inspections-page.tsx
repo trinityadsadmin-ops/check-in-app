@@ -57,7 +57,7 @@ import {
 } from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Textarea } from '@/components/ui/textarea'
-import type { AreaInspection, AreaInspectionReviewStatus, ListAreaInspectionsParams, WorkLocation } from '@/generated/api/model'
+import type { AreaInspection, AreaInspectionReviewStatus, ListAreaInspectionsParams, ListAreaInspectionsResponse, WorkLocation } from '@/generated/api/model'
 import { UserCombobox } from '@/features/users/user-combobox'
 import { usePermissions } from '@/hooks/use-permissions'
 import {
@@ -127,7 +127,7 @@ export function AreaInspectionsPage() {
 
   const workLocationsQuery = useQuery({
     queryKey: ['work-locations'],
-    queryFn: listWorkLocations
+    queryFn: () => listWorkLocations()
   })
   const selectedWorkLocation = useMemo(
     () =>
@@ -176,9 +176,19 @@ export function AreaInspectionsPage() {
         ...(reviewNote.trim() ? { reviewNote: reviewNote.trim() } : {})
       })
     },
-    onSuccess: () => {
+    onSuccess: async ({ areaInspection }) => {
+      await queryClient.cancelQueries({ queryKey: ['areaInspections'] })
+      queryClient.setQueriesData<ListAreaInspectionsResponse>(
+        { queryKey: ['areaInspections'] },
+        (cached) => cached ? {
+          ...cached,
+          areaInspections: cached.areaInspections.map((inspection) =>
+            inspection.id === areaInspection.id ? areaInspection : inspection
+          )
+        } : cached
+      )
       queryClient.invalidateQueries({ queryKey: ['areaInspections'] })
-      const isApproved = reviewStatus === 'APPROVED'
+      const isApproved = areaInspection.reviewStatus === 'APPROVED'
       setPendingReview(null)
       setReviewNote('')
       toast.success(isApproved ? t('areaInspections.toastApproved') : t('areaInspections.toastRejected'))
@@ -275,7 +285,8 @@ export function AreaInspectionsPage() {
         [t('common.location')]: formatLocation(inspection.lat, inspection.lng),
         [t('areaInspections.capturedAt')]: formatTime(inspection.capturedAt, locale),
         [t('areaInspections.notes')]: inspection.notes ?? '',
-        [t('areaInspections.reviewStatus')]: t(translateStatusKey(inspection.reviewStatus))
+        [t('areaInspections.reviewStatus')]: t(translateStatusKey(inspection.reviewStatus)),
+        [t('areaInspections.reviewNote')]: inspection.reviewNote ?? ''
       }))
       const worksheet = XLSX.utils.json_to_sheet(records)
       const workbook = XLSX.utils.book_new()
@@ -482,6 +493,7 @@ export function AreaInspectionsPage() {
                   <SortableHead label={t('areaInspections.capturedAt')} value="capturedAt" />
                   <SortableHead label={t('areaInspections.notes')} value="notes" />
                   <SortableHead label={t('areaInspections.reviewStatus')} value="reviewStatus" />
+                  <TableHead>{t('areaInspections.reviewNote')}</TableHead>
                   {canReview || canDelete ? (
                     <TableHead className="w-44 text-right">{t('common.actions')}</TableHead>
                   ) : null}
@@ -543,6 +555,9 @@ export function AreaInspectionsPage() {
                       <Badge variant={statusVariant(inspection.reviewStatus)}>
                         {t(translateStatusKey(inspection.reviewStatus))}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="min-w-48 max-w-xs whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">
+                      {inspection.reviewNote?.trim() ? inspection.reviewNote : '-'}
                     </TableCell>
                     {canReview || canDelete ? (
                       <TableCell className="text-right">
