@@ -5,7 +5,7 @@ import { useState } from 'react'
 import {
   INSPECTION_POSITIONS,
   INSPECTION_SLOTS,
-  isInspectionComplete,
+  isInspectionValid,
   type InspectionPosition,
   type InspectionSelection,
   type InspectionSlot
@@ -13,7 +13,7 @@ import {
 import { useI18n } from '@/lib/i18n/i18n-provider'
 
 /**
- * Supervisor check-in pop-up: pick one or more inspected staff positions, and
+ * Supervisor check-in pop-up: optionally pick inspected staff positions, and
  * one or more inspection times for each. Shown over the check-in sheet after
  * Confirm; the check-in is only sent once this is submitted. The parent mounts
  * it only while open, so each opening starts with an empty selection.
@@ -52,8 +52,7 @@ export function SupervisorInspectionDialog({
     })
   }
 
-  const complete = isInspectionComplete(selection)
-  const canSubmit = complete && !submitting
+  const canSubmit = isInspectionValid(selection) && !submitting
 
   return (
     <div className="absolute inset-0 flex items-end justify-center" style={{ zIndex: 90 }}>

@@ -27,10 +27,10 @@ export const INSPECTION_SLOTS: { value: InspectionSlot; labelKey: keyof Dict }[]
   { value: 'END_SHIFT', labelKey: 'inspection_slot_end_shift' }
 ]
 
-/** Valid when at least one position is selected and every selected one has a time. */
-export function isInspectionComplete(selection: InspectionSelection) {
-  const entries = Object.values(selection)
-  return entries.length > 0 && entries.every((slots) => slots.length > 0)
+/** Selecting nothing is allowed (the inspection is optional), but every
+ *  position that is selected needs at least one inspection time. */
+export function isInspectionValid(selection: InspectionSelection) {
+  return Object.values(selection).every((slots) => slots.length > 0)
 }
 
 /** Selection → API payload, in the canonical position/slot order. */

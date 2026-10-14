@@ -22,7 +22,7 @@ import { useShell } from '@/lib/shell/shell-provider'
 import { latestWorkArea, pointInPolygon } from '@/features/attendance/attendance-utils'
 import {
   SUPERVISOR_INSPECTION_PERMISSION,
-  isInspectionComplete,
+  isInspectionValid,
   toInspectionPayload,
   type InspectionSelection
 } from '@/features/attendance/supervisor-inspection'
@@ -222,7 +222,7 @@ export function CheckInSheet() {
   }
 
   const onInspectionSubmit = (selection: InspectionSelection) => {
-    if (!isInspectionComplete(selection)) {
+    if (!isInspectionValid(selection)) {
       toast.error(t.inspection_required)
       return
     }
@@ -236,7 +236,10 @@ export function CheckInSheet() {
         ...(position ? { lat: position.lat, lng: position.lng } : {}),
         capturedAt: new Date().toISOString(),
         ...(manual ? { isManual: true, manualReason: reason.trim(), workAreaId: siteId } : {}),
-        ...(inspection ? { supervisorInspection: toInspectionPayload(inspection) } : {})
+        // An empty selection is sent as no inspection at all.
+        ...(inspection && Object.keys(inspection).length > 0
+          ? { supervisorInspection: toInspectionPayload(inspection) }
+          : {})
       }
       if (sheet === 'in') {
         await checkInMutation.mutateAsync({ data: body })

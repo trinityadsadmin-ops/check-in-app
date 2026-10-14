@@ -20,9 +20,9 @@ export const SupervisorInspectionEntrySchema = z
   })
   .openapi('SupervisorInspectionEntry')
 
+/** May be empty: a supervisor can check in without recording an inspection. */
 export const SupervisorInspectionSchema = z
   .array(SupervisorInspectionEntrySchema)
-  .min(1)
   .refine(
     (entries) => new Set(entries.map((entry) => entry.position)).size === entries.length,
     'Each inspected position may appear only once'
@@ -38,7 +38,8 @@ export type SupervisorInspectionDecision =
  * Decides what supervisor inspection (if any) a punch should store.
  *
  * - Only CHECK_IN events carry an inspection.
- * - Users holding `mobile:supervisor_inspection` must send one on check-in.
+ * - Users holding `mobile:supervisor_inspection` may send one on check-in; it is
+ *   optional, and an empty list is stored as "no inspection" (null).
  * - Users without it may not send one, so inspection data can't be forged by
  *   regular employees.
  *
@@ -51,19 +52,19 @@ export function resolveSupervisorInspection(input: {
   inspection: SupervisorInspection | undefined
 }): SupervisorInspectionDecision {
   if (input.eventType === 'CHECK_OUT') {
-    return input.inspection
+    return input.inspection?.length
       ? { ok: false, status: 400, message: 'supervisorInspection is only accepted on check-in' }
       : { ok: true, value: null }
   }
 
   if (!input.isSupervisor) {
-    return input.inspection
+    return input.inspection?.length
       ? { ok: false, status: 403, message: 'Missing permission: mobile:supervisor_inspection' }
       : { ok: true, value: null }
   }
 
-  if (!input.inspection) {
-    return { ok: false, status: 400, message: 'supervisorInspection is required for supervisors' }
+  if (!input.inspection?.length) {
+    return { ok: true, value: null }
   }
 
   const value = [...input.inspection]

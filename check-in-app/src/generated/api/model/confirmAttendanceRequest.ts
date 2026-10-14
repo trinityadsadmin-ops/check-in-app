@@ -27,6 +27,5 @@ export interface ConfirmAttendanceRequest {
    */
   manualReason?: string;
   workAreaId?: string;
-  /** @minItems 1 */
   supervisorInspection?: SupervisorInspectionEntry[];
 }

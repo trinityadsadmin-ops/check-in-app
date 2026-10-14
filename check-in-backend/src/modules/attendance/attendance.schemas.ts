@@ -34,7 +34,7 @@ export const ConfirmAttendanceRequestSchema = z
     isManual: z.boolean().optional(),
     manualReason: z.string().trim().min(1).max(500).optional(),
     workAreaId: z.string().uuid().optional(),
-    /** Check-in only, and required for users with `mobile:supervisor_inspection`:
+    /** Check-in only, optional, for users with `mobile:supervisor_inspection`:
      *  the staff positions inspected and the shift moments for each. */
     supervisorInspection: SupervisorInspectionSchema.optional()
   })

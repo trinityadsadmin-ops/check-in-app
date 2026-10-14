@@ -1083,8 +1083,7 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupervisorInspectionEntry"
-            },
-            "minItems": 1
+            }
           }
         }
       },

@@ -12,8 +12,8 @@ describe('SupervisorInspectionSchema', () => {
     assert.equal(result.success, true)
   })
 
-  it('rejects an empty inspection', () => {
-    assert.equal(SupervisorInspectionSchema.safeParse([]).success, false)
+  it('accepts an empty inspection', () => {
+    assert.equal(SupervisorInspectionSchema.safeParse([]).success, true)
   })
 
   it('rejects a position with no slots', () => {
@@ -67,10 +67,29 @@ describe('resolveSupervisorInspection', () => {
     assert.equal(!result.ok && result.status, 403)
   })
 
-  it('requires supervisors to send an inspection on check-in', () => {
-    const result = resolveSupervisorInspection({ eventType: 'CHECK_IN', isSupervisor: true, inspection: undefined })
-    assert.equal(result.ok, false)
-    assert.equal(!result.ok && result.status, 400)
+  it('lets supervisors check in without an inspection', () => {
+    assert.deepEqual(
+      resolveSupervisorInspection({ eventType: 'CHECK_IN', isSupervisor: true, inspection: undefined }),
+      { ok: true, value: null }
+    )
+  })
+
+  it('stores an empty supervisor inspection as no inspection', () => {
+    assert.deepEqual(
+      resolveSupervisorInspection({ eventType: 'CHECK_IN', isSupervisor: true, inspection: [] }),
+      { ok: true, value: null }
+    )
+  })
+
+  it('ignores an empty inspection from regular employees and on check-out', () => {
+    assert.deepEqual(
+      resolveSupervisorInspection({ eventType: 'CHECK_IN', isSupervisor: false, inspection: [] }),
+      { ok: true, value: null }
+    )
+    assert.deepEqual(
+      resolveSupervisorInspection({ eventType: 'CHECK_OUT', isSupervisor: true, inspection: [] }),
+      { ok: true, value: null }
+    )
   })
 
   it('stores a supervisor inspection in canonical order', () => {
