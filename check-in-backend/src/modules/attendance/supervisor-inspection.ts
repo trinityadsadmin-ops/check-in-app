@@ -3,9 +3,24 @@ import { z } from '@hono/zod-openapi'
 /** Staff positions a supervisor can inspect. */
 export const inspectionPositions = ['PC', 'BA', 'ROADSHOW'] as const
 
-/** Shift moments an inspection can happen at. Named START_SHIFT/END_SHIFT
- *  (not CHECK_IN/CHECK_OUT) so they can't be confused with attendance event types. */
-export const inspectionSlots = ['START_SHIFT', 'BEFORE_BREAK', 'AFTER_BREAK', 'END_SHIFT'] as const
+/**
+ * Shift moments an inspection can happen at, in display order. Named
+ * START_SHIFT/END_SHIFT (not CHECK_IN/CHECK_OUT) so they can't be confused with
+ * attendance event types.
+ *
+ * The app offers START_SHIFT, BREAK (before/after break), END_SHIFT and
+ * FREESTYLE. BEFORE_BREAK and AFTER_BREAK were the original separate options:
+ * they stay valid so already-stored inspections keep reading correctly and an
+ * older cached app can still submit.
+ */
+export const inspectionSlots = [
+  'START_SHIFT',
+  'BEFORE_BREAK',
+  'BREAK',
+  'AFTER_BREAK',
+  'END_SHIFT',
+  'FREESTYLE'
+] as const
 
 export const InspectionPositionSchema = z.enum(inspectionPositions)
 export const InspectionSlotSchema = z.enum(inspectionSlots)

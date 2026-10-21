@@ -13,6 +13,8 @@ export type SupervisorInspectionEntrySlotsItem = typeof SupervisorInspectionEntr
 export const SupervisorInspectionEntrySlotsItem = {
   START_SHIFT: 'START_SHIFT',
   BEFORE_BREAK: 'BEFORE_BREAK',
+  BREAK: 'BREAK',
   AFTER_BREAK: 'AFTER_BREAK',
   END_SHIFT: 'END_SHIFT',
+  FREESTYLE: 'FREESTYLE',
 } as const;

@@ -20,11 +20,13 @@ export const INSPECTION_POSITIONS: { value: InspectionPosition; label: string }[
   { value: 'ROADSHOW', label: 'Roadshow' }
 ]
 
+/** Inspection times offered in the pop-up. The API also accepts the original
+ *  BEFORE_BREAK / AFTER_BREAK values, which were merged into BREAK. */
 export const INSPECTION_SLOTS: { value: InspectionSlot; labelKey: keyof Dict }[] = [
   { value: 'START_SHIFT', labelKey: 'inspection_slot_start_shift' },
-  { value: 'BEFORE_BREAK', labelKey: 'inspection_slot_before_break' },
-  { value: 'AFTER_BREAK', labelKey: 'inspection_slot_after_break' },
-  { value: 'END_SHIFT', labelKey: 'inspection_slot_end_shift' }
+  { value: 'BREAK', labelKey: 'inspection_slot_break' },
+  { value: 'END_SHIFT', labelKey: 'inspection_slot_end_shift' },
+  { value: 'FREESTYLE', labelKey: 'inspection_slot_freestyle' }
 ]
 
 /** Selecting nothing is allowed (the inspection is optional), but every

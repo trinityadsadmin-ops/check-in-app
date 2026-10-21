@@ -35,6 +35,20 @@ describe('SupervisorInspectionSchema', () => {
     assert.equal(result.success, false)
   })
 
+  it('accepts the merged break slot and freestyle', () => {
+    const result = SupervisorInspectionSchema.safeParse([
+      { position: 'BA', slots: ['BREAK', 'FREESTYLE'] }
+    ])
+    assert.equal(result.success, true)
+  })
+
+  it('still accepts the original before/after break slots', () => {
+    const result = SupervisorInspectionSchema.safeParse([
+      { position: 'PC', slots: ['BEFORE_BREAK', 'AFTER_BREAK'] }
+    ])
+    assert.equal(result.success, true)
+  })
+
   it('rejects unknown positions and slots', () => {
     assert.equal(SupervisorInspectionSchema.safeParse([{ position: 'CASHIER', slots: ['START_SHIFT'] }]).success, false)
     assert.equal(SupervisorInspectionSchema.safeParse([{ position: 'PC', slots: ['LUNCH'] }]).success, false)
@@ -102,6 +116,17 @@ describe('resolveSupervisorInspection', () => {
           { position: 'ROADSHOW', slots: ['START_SHIFT', 'END_SHIFT'] }
         ]
       }
+    )
+  })
+
+  it('orders the new slots by shift moment, with freestyle last', () => {
+    assert.deepEqual(
+      resolveSupervisorInspection({
+        eventType: 'CHECK_IN',
+        isSupervisor: true,
+        inspection: [{ position: 'BA', slots: ['FREESTYLE', 'END_SHIFT', 'BREAK', 'START_SHIFT'] }]
+      }),
+      { ok: true, value: [{ position: 'BA', slots: ['START_SHIFT', 'BREAK', 'END_SHIFT', 'FREESTYLE'] }] }
     )
   })
 

@@ -631,8 +631,10 @@
               "enum": [
                 "START_SHIFT",
                 "BEFORE_BREAK",
+                "BREAK",
                 "AFTER_BREAK",
-                "END_SHIFT"
+                "END_SHIFT",
+                "FREESTYLE"
               ]
             },
             "minItems": 1
