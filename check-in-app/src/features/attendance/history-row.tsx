@@ -14,8 +14,10 @@ export function HistoryRow({ row, size = 'sm' }: { row: AttendanceRow; size?: 's
   const Icon = row.isCheckIn ? LogIn : LogOut
   const iconBg = row.isCheckIn ? 'var(--trinity-primary-l)' : 'var(--trinity-muted)'
   const iconFg = row.isCheckIn ? 'var(--trinity-primary)' : 'var(--trinity-mfg)'
-  const tagBg = row.inside ? 'var(--trinity-success-bg)' : 'var(--trinity-danger-bg)'
-  const tagFg = row.inside ? 'var(--trinity-success)' : 'var(--trinity-danger)'
+  const { t } = useI18n()
+  const flagged = row.missingCheckOut
+  const tagBg = row.inside && !flagged ? 'var(--trinity-success-bg)' : 'var(--trinity-danger-bg)'
+  const tagFg = row.inside && !flagged ? 'var(--trinity-success)' : 'var(--trinity-danger)'
   const md = size === 'md'
 
   return (
@@ -81,7 +83,7 @@ export function HistoryRow({ row, size = 'sm' }: { row: AttendanceRow; size?: 's
             style={{ width: 5, height: 5, borderRadius: '50%', background: tagFg }}
             aria-hidden
           />
-          {row.tag}
+          {flagged ? t.missing_checkout_tag : row.tag}
         </div>
       </div>
     </div>

@@ -26,6 +26,16 @@ export const en = {
   blocked_title: 'Device blocked',
   blocked_msg:
     'This account is bound to another device. Please contact your administrator to reset your device binding.',
+  blocked_locked_title: 'Device locked',
+  blocked_locked_msg:
+    'This device was locked because the account was used from a copied or changed device. Please contact your administrator to review and reset it.',
+  blocked_unsupported_msg:
+    'This browser cannot store a secure device key. Please open the app from your Home Screen in Safari or Chrome.',
+  missing_checkout_title: 'Missing check-out',
+  /** `{date}` is replaced with the work date. */
+  missing_checkout_msg:
+    'You did not check out on {date}. That day has been flagged for your supervisor to review.',
+  missing_checkout_tag: 'No check-out',
   install_title: 'Add to Home Screen',
   install_sub:
     'Install the app to your Home Screen to enable notifications and full functionality — required before use.',
@@ -217,6 +227,15 @@ export const th: Dict = {
   blocked_title: 'อุปกรณ์ถูกบล็อก',
   blocked_msg:
     'บัญชีนี้ถูกผูกกับอุปกรณ์อื่น กรุณาติดต่อผู้ดูแลระบบเพื่อรีเซ็ตการผูกอุปกรณ์',
+  blocked_locked_title: 'อุปกรณ์ถูกล็อก',
+  blocked_locked_msg:
+    'อุปกรณ์นี้ถูกล็อก เนื่องจากพบการใช้งานบัญชีจากอุปกรณ์ที่ถูกคัดลอกหรือเปลี่ยนเครื่อง กรุณาติดต่อผู้ดูแลระบบเพื่อตรวจสอบและรีเซ็ต',
+  blocked_unsupported_msg:
+    'เบราว์เซอร์นี้ไม่สามารถเก็บกุญแจอุปกรณ์แบบปลอดภัยได้ กรุณาเปิดแอปจากหน้าจอหลักผ่าน Safari หรือ Chrome',
+  missing_checkout_title: 'ไม่ได้ลงเวลาออก',
+  missing_checkout_msg:
+    'คุณไม่ได้ลงเวลาออกในวันที่ {date} วันดังกล่าวถูกส่งให้หัวหน้างานตรวจสอบแล้ว',
+  missing_checkout_tag: 'ไม่ได้ลงเวลาออก',
   install_title: 'เพิ่มลงหน้าจอหลัก',
   install_sub:
     'ติดตั้งแอปลงหน้าจอหลักเพื่อเปิดใช้งานการแจ้งเตือนและฟังก์ชันทั้งหมด — จำเป็นต้องติดตั้งก่อนใช้งาน',

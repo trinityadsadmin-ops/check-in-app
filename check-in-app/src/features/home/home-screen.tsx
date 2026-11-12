@@ -8,7 +8,8 @@ import {
   LogIn,
   LogOut,
   MapPinOff,
-  PenLine
+  PenLine,
+  TriangleAlert
 } from 'lucide-react'
 import type { Route } from 'next'
 import { useRouter } from 'next/navigation'
@@ -30,6 +31,7 @@ import {
   fmtTime,
   isCheckedInNow,
   isInside,
+  latestMissingCheckOut,
   sortDaysDesc,
   todayEventsDesc,
   toRows
@@ -69,6 +71,7 @@ export function HomeScreen() {
   const sorted = sortDaysDesc(days)
 
   const status = deriveTodayStatus(days)
+  const missedCheckOutDay = latestMissingCheckOut(days)
   // Action availability tracks the *current* state, so users can check in/out
   // multiple times a day: show Check Out while checked in, Check In otherwise.
   const isCheckedIn = isCheckedInNow(days)
@@ -216,6 +219,32 @@ export function HomeScreen() {
           <MapPinOff size={16} style={{ flex: 'none' }} />
           {t.geo_denied_banner}
         </button>
+      ) : null}
+
+      {/* previous day left checked in (no overnight shifts): it can't be closed
+          from the app any more and has been flagged for supervisor review. */}
+      {missedCheckOutDay ? (
+        <div
+          role="alert"
+          className="flex"
+          style={{
+            gap: 8,
+            border: '1px solid var(--trinity-danger-bd)',
+            background: 'var(--trinity-danger-bg)',
+            borderRadius: 8,
+            padding: '10px 12px',
+            fontSize: 12.5,
+            color: 'var(--trinity-danger)'
+          }}
+        >
+          <TriangleAlert size={16} style={{ flex: 'none', marginTop: 1 }} />
+          <div>
+            <div style={{ fontWeight: 600 }}>{t.missing_checkout_title}</div>
+            <div style={{ marginTop: 2 }}>
+              {t.missing_checkout_msg.replace('{date}', missedCheckOutDay.workDate)}
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {/* check-in status card */}

@@ -41,15 +41,15 @@ import type {
 export const getSignUpUrl = () => {
 
 
-
+  
 
   return `/api/auth/sign-up`
 }
 
 export const signUp = async (signUpRequest: SignUpRequest, options?: RequestInit): Promise<AuthResponse> => {
-
+  
   const res = await fetch(getSignUpUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -59,7 +59,7 @@ export const signUp = async (signUpRequest: SignUpRequest, options?: RequestInit
 )
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
+  
   const data: AuthResponse = body ? JSON.parse(body) : {}
   return data
 }
@@ -78,7 +78,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, fetch: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof signUp>>, {data: SignUpRequest}> = (props) => {
@@ -87,7 +87,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
           return  signUp(data,fetchOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -112,15 +112,15 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export const getSignInUrl = () => {
 
 
-
+  
 
   return `/api/auth/sign-in`
 }
 
 export const signIn = async (signInRequest: SignInRequest, options?: RequestInit): Promise<AuthResponse> => {
-
+  
   const res = await fetch(getSignInUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -130,7 +130,7 @@ export const signIn = async (signInRequest: SignInRequest, options?: RequestInit
 )
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
+  
   const data: AuthResponse = body ? JSON.parse(body) : {}
   return data
 }
@@ -149,7 +149,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, fetch: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof signIn>>, {data: SignInRequest}> = (props) => {
@@ -158,7 +158,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
           return  signIn(data,fetchOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -183,15 +183,15 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export const getRefreshAuthSessionUrl = () => {
 
 
-
+  
 
   return `/api/auth/refresh`
 }
 
 export const refreshAuthSession = async (refreshTokenRequest: RefreshTokenRequest, options?: RequestInit): Promise<AuthResponse> => {
-
+  
   const res = await fetch(getRefreshAuthSessionUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -201,7 +201,7 @@ export const refreshAuthSession = async (refreshTokenRequest: RefreshTokenReques
 )
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
+  
   const data: AuthResponse = body ? JSON.parse(body) : {}
   return data
 }
@@ -220,7 +220,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, fetch: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshAuthSession>>, {data: RefreshTokenRequest}> = (props) => {
@@ -229,7 +229,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
           return  refreshAuthSession(data,fetchOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -254,24 +254,24 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
     export const getGetCurrentUserUrl = () => {
 
 
-
+  
 
   return `/api/auth/me`
 }
 
 export const getCurrentUser = async ( options?: RequestInit): Promise<CurrentUserResponse> => {
-
+  
   const res = await fetch(getGetCurrentUserUrl(),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 )
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
+  
   const data: CurrentUserResponse = body ? JSON.parse(body) : {}
   return data
 }
@@ -282,7 +282,7 @@ export const getGetCurrentUserQueryKey = () => {
     return [`/api/auth/me`] as const;
     }
 
-
+    
 export const getGetCurrentUserQueryOptions = <TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>>, fetch?: RequestInit}
 ) => {
 
@@ -290,13 +290,13 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getGetCurrentUserQueryKey();
 
-
+  
 
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentUser>>> = ({ signal }) => getCurrentUser({ ...(signal ? { signal } : {}), ...fetchOptions });
 
+      
 
-
-
+      
 
    return  { queryKey, queryFn,   staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
@@ -332,7 +332,7 @@ export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUs
 
 export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>>, fetch?: RequestInit}
- , queryClient?: QueryClient
+ , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetCurrentUserQueryOptions(options)
@@ -349,24 +349,24 @@ export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUs
 export const getSignOutUrl = () => {
 
 
-
+  
 
   return `/api/auth/sign-out`
 }
 
 export const signOut = async ( options?: RequestInit): Promise<SignOutResponse> => {
-
+  
   const res = await fetch(getSignOutUrl(),
-  {
+  {      
     ...options,
     method: 'POST'
-
-
+    
+    
   }
 )
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
+  
   const data: SignOutResponse = body ? JSON.parse(body) : {}
   return data
 }
@@ -385,22 +385,22 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, fetch: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof signOut>>, void> = () => {
-
+          
 
           return  signOut(fetchOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
 
     export type SignOutMutationResult = NonNullable<Awaited<ReturnType<typeof signOut>>>
-
+    
     export type SignOutMutationError = unknown
 
     export const useSignOut = <TError = unknown,
@@ -416,3 +416,4 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
       return useMutation(mutationOptions , queryClient);
     }
+    

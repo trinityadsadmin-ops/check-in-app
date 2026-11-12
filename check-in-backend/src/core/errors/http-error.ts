@@ -8,6 +8,12 @@ export type ErrorCode =
   | 'EMAIL_ALREADY_EXISTS'
   | 'AREA_INSPECTION_REVIEW_NOTE_REQUIRED'
   | 'RATE_LIMITED'
+  | 'DEVICE_NOT_BOUND'
+  | 'DEVICE_MISMATCH'
+  | 'DEVICE_LOCKED'
+  | 'DEVICE_SIGNATURE_REQUIRED'
+  | 'DEVICE_KEY_REQUIRED'
+  | 'MISSING_CHECK_OUT'
   | 'INTERNAL_SERVER_ERROR'
 
 export class AppError extends Error {
@@ -52,3 +58,23 @@ export const areaInspectionReviewNoteRequired = () =>
 
 export const rateLimited = (message = 'Too many requests') =>
   new AppError(429, 'RATE_LIMITED', message)
+
+export const deviceError = (
+  code: Extract<
+    ErrorCode,
+    | 'DEVICE_NOT_BOUND'
+    | 'DEVICE_MISMATCH'
+    | 'DEVICE_LOCKED'
+    | 'DEVICE_SIGNATURE_REQUIRED'
+    | 'DEVICE_KEY_REQUIRED'
+  >,
+  message: string
+) => new AppError(403, code, message)
+
+export const missingCheckOut = (workDate: string) =>
+  new AppError(
+    400,
+    'MISSING_CHECK_OUT',
+    `Your check-in on ${workDate} was never checked out and has been flagged for review. Please contact your supervisor.`,
+    { workDate }
+  )

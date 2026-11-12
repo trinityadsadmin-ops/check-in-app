@@ -10,7 +10,7 @@ import { useI18n } from '@/lib/i18n/i18n-provider'
 import { LangToggle } from './lang-toggle'
 
 export function LoginScreen() {
-  const { signIn, isAuthenticated, isLoading, blocked } = useAuth()
+  const { signIn, isAuthenticated, isLoading, blocked, blockedReason, markBlocked } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -29,9 +29,20 @@ export function LoginScreen() {
       return
     }
     const params = new URLSearchParams(window.location.search)
+    let changed = false
     if (params.get('session') === 'expired') {
       toast.error(t.session_expired)
       params.delete('session')
+      changed = true
+    }
+    // Sent here because the backend rejected this device mid-session.
+    const deviceReason = params.get('device')
+    if (deviceReason) {
+      markBlocked(deviceReason)
+      params.delete('device')
+      changed = true
+    }
+    if (changed) {
       const qs = params.toString()
       window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
     }
@@ -110,7 +121,7 @@ export function LoginScreen() {
           />
           <div>
             <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--trinity-danger)' }}>
-              {t.blocked_title}
+              {blockedReason === 'DEVICE_LOCKED' ? t.blocked_locked_title : t.blocked_title}
             </div>
             <div
               style={{
@@ -120,7 +131,11 @@ export function LoginScreen() {
                 marginTop: '3px'
               }}
             >
-              {t.blocked_msg}
+              {blockedReason === 'DEVICE_LOCKED'
+                ? t.blocked_locked_msg
+                : blockedReason === 'DEVICE_KEY_REQUIRED'
+                  ? t.blocked_unsupported_msg
+                  : t.blocked_msg}
             </div>
           </div>
         </div>

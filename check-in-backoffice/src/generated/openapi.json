@@ -462,6 +462,9 @@
               "$ref": "#/components/schemas/AttendanceEvent"
             }
           },
+          "missingCheckOut": {
+            "type": "boolean"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -478,6 +481,7 @@
           "checkIn",
           "checkOut",
           "events",
+          "missingCheckOut",
           "createdAt"
         ]
       },
@@ -1421,6 +1425,85 @@
           "emergencyLog"
         ]
       },
+      "RecordActionLogsResponse": {
+        "type": "object",
+        "properties": {
+          "recorded": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "recorded"
+        ]
+      },
+      "RecordActionLogsRequest": {
+        "type": "object",
+        "properties": {
+          "logs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientActionLog"
+            },
+            "minItems": 1,
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "logs"
+        ]
+      },
+      "ClientActionLog": {
+        "type": "object",
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "INTENT",
+              "RESULT"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "FAILURE"
+            ]
+          },
+          "errorCode": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "errorMessage": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "clientAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          }
+        },
+        "required": [
+          "actionId",
+          "action",
+          "phase",
+          "clientAt"
+        ]
+      },
       "ListUsersResponse": {
         "type": "object",
         "properties": {
@@ -1476,6 +1559,23 @@
           "createdAt": {
             "type": "string",
             "nullable": true
+          },
+          "deviceLock": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "lockedAt": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "lockedAt",
+              "reason"
+            ]
           }
         },
         "required": [
@@ -1684,6 +1784,23 @@
             "type": "string",
             "nullable": true,
             "format": "date-time"
+          },
+          "lockedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "lockReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "hasDeviceKey": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -1692,7 +1809,11 @@
           "deviceUuid",
           "isActive",
           "boundAt",
-          "resetAt"
+          "resetAt",
+          "lockedAt",
+          "lockReason",
+          "lastSeenAt",
+          "hasDeviceKey"
         ]
       },
       "UserPermissionOverridesResponse": {
@@ -2627,6 +2748,154 @@
           "resourceType",
           "resourceId",
           "createdAt"
+        ]
+      },
+      "ListActionLogsResponse": {
+        "type": "object",
+        "properties": {
+          "actionLogs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionLog"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "perPage": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "actionLogs",
+          "page",
+          "perPage",
+          "total"
+        ]
+      },
+      "ActionLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "user": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "fullName": {
+                "type": "string",
+                "nullable": true
+              },
+              "employeeCode": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "fullName",
+              "employeeCode"
+            ]
+          },
+          "action": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "INTENT",
+              "RESULT"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "CLIENT",
+              "SERVER"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SUCCESS",
+              "FAILURE",
+              null
+            ]
+          },
+          "httpStatus": {
+            "type": "integer",
+            "nullable": true
+          },
+          "errorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deviceUuid": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "ipAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "userAgent": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadata": {
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "actionId",
+          "userId",
+          "user",
+          "action",
+          "phase",
+          "source",
+          "outcome",
+          "httpStatus",
+          "errorCode",
+          "errorMessage",
+          "clientAt",
+          "createdAt",
+          "deviceUuid",
+          "ipAddress",
+          "userAgent"
         ]
       },
       "RetentionCleanupResponse": {
@@ -3580,6 +3849,56 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EmergencyLogResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/action-logs": {
+      "post": {
+        "operationId": "recordActionLogs",
+        "tags": [
+          "Mobile"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordActionLogsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Client-side action log entries (button pressed / outcome seen in the app)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordActionLogsResponse"
                 }
               }
             }
@@ -5779,6 +6098,127 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListEventLogsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/backoffice/action-logs": {
+      "get": {
+        "operationId": "listActionLogs",
+        "tags": [
+          "Backoffice"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "perPage",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "actionId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "action",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUCCESS",
+                "FAILURE"
+              ]
+            },
+            "required": false,
+            "name": "outcome",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Employee action timeline (app intent + client/server results)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListActionLogsResponse"
                 }
               }
             }

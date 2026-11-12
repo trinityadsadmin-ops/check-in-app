@@ -13,14 +13,15 @@ import {
   useListSiteAreaInspections
 } from '@/generated/api/frontend/frontend'
 import {
-  useCreateAreaInspection,
-  useCreateAreaInspectionUploadUrl,
-  useDeleteAreaInspection
+  createAreaInspection,
+  createAreaInspectionUploadUrl,
+  deleteAreaInspection
 } from '@/generated/api/mobile/mobile'
 import type {
   AreaInspection,
   CreateAreaInspectionUploadUrlRequestContentType
 } from '@/generated/api/model'
+import { trackAction } from '@/lib/audit/action-log'
 import { ApiError } from '@/lib/api/fetch-client'
 import { useI18n } from '@/lib/i18n/i18n-provider'
 import type { Lang } from '@/lib/i18n/dictionaries'
@@ -308,11 +309,9 @@ export function CaptureLog() {
   const { t, lang } = useI18n()
   const profile = useGetFrontendProfile()
   const inspections = useListSiteAreaInspections({ perPage: 30 })
-  const createUploadUrl = useCreateAreaInspectionUploadUrl()
-  const createInspection = useCreateAreaInspection()
-  const deleteInspection = useDeleteAreaInspection()
 
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [adHoc, setAdHoc] = useState<LogEntry[]>([])
   const [now, setNow] = useState(() => Date.now())
   // The report whose detail overlay is open (tap a log card to inspect).
@@ -377,23 +376,43 @@ export function CaptureLog() {
       setCameraOpen(false)
 
       try {
-        const { signedUploadUrl, pendingUploadId } = await createUploadUrl.mutateAsync({
-          data: { contentType }
-        })
-        await fetch(signedUploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': contentType },
-          body: photo.blob
-        })
-        await createInspection.mutateAsync({
-          data: {
-            pendingUploadId,
+        // One tracked action covers the upload-url, photo upload and create
+        // calls; the server logs each call under the same action id.
+        await trackAction(
+          'area_inspection.create',
+          async (action) => {
+            const { signedUploadUrl, pendingUploadId } = await createAreaInspectionUploadUrl(
+              { contentType },
+              { headers: action.headers }
+            )
+            const upload = await fetch(signedUploadUrl, {
+              method: 'PUT',
+              headers: { 'Content-Type': contentType },
+              body: photo.blob
+            })
+            if (!upload.ok) {
+              const error = new Error(`Photo upload failed (${upload.status})`)
+              error.name = 'PHOTO_UPLOAD_FAILED'
+              throw error
+            }
+            await createAreaInspection(
+              {
+                pendingUploadId,
+                lat: photo.lat ?? null,
+                lng: photo.lng ?? null,
+                notes,
+                capturedAt: photo.capturedAt.toISOString()
+              },
+              { headers: action.headers }
+            )
+          },
+          {
             lat: photo.lat ?? null,
             lng: photo.lng ?? null,
-            notes,
+            photoBytes: photo.blob.size,
             capturedAt: photo.capturedAt.toISOString()
           }
-        })
+        )
         // Drop the optimistic entry and pull the persisted, site-wide list.
         setAdHoc((prev) => prev.filter((p) => p.id !== localId))
         if (entry.photoUrl?.startsWith('blob:')) {
@@ -408,7 +427,7 @@ export function CaptureLog() {
         toast.error(message)
       }
     },
-    [createInspection, createUploadUrl, inspections, myInitials, myName, t]
+    [inspections, myInitials, myName, t]
   )
 
   const deleteEntry = useCallback(
@@ -425,16 +444,23 @@ export function CaptureLog() {
         return
       }
 
+      setDeleting(true)
       try {
-        await deleteInspection.mutateAsync({ areaInspectionId: entry.id })
+        await trackAction(
+          'area_inspection.delete',
+          (action) => deleteAreaInspection(entry.id, { headers: action.headers }),
+          { areaInspectionId: entry.id }
+        )
         await inspections.refetch()
         toast.success(t.t_deleted)
       } catch (error) {
         const message = error instanceof ApiError ? error.message : t.login_failed
         toast.error(message)
+      } finally {
+        setDeleting(false)
       }
     },
-    [deleteInspection, inspections, t]
+    [inspections, t]
   )
 
   return (
@@ -660,7 +686,7 @@ export function CaptureLog() {
                         e.stopPropagation()
                         deleteEntry(ph)
                       }}
-                      disabled={deleteInspection.isPending}
+                      disabled={deleting}
                       style={{
                         fontSize: 11.5,
                         fontWeight: 600,

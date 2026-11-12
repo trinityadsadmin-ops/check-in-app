@@ -262,7 +262,11 @@ function mapDevice(row: Awaited<ReturnType<typeof getActiveDeviceBinding>>) {
     deviceUuid: row.device_uuid,
     isActive: row.is_active,
     boundAt: row.bound_at,
-    resetAt: row.reset_at
+    resetAt: row.reset_at,
+    lockedAt: row.locked_at,
+    lockReason: row.lock_reason,
+    lastSeenAt: row.last_seen_at,
+    hasDeviceKey: row.public_key_jwk !== null
   }
 }
 
@@ -387,8 +391,33 @@ export async function listUsers(query: ListUsersQuery) {
     throw badRequest(error.message)
   }
 
+  const rows = (data ?? []) as ProfileRow[]
+  const locks = new Map<string, { lockedAt: string; reason: string | null }>()
+  if (rows.length > 0) {
+    const { data: lockedBindings, error: lockError } = await supabaseAdmin
+      .from('device_bindings')
+      .select('user_id,locked_at,lock_reason')
+      .in(
+        'user_id',
+        rows.map((row) => row.id)
+      )
+      .eq('is_active', true)
+      .not('locked_at', 'is', null)
+
+    if (lockError) {
+      throw badRequest(lockError.message)
+    }
+
+    for (const binding of lockedBindings ?? []) {
+      locks.set(binding.user_id as string, {
+        lockedAt: binding.locked_at as string,
+        reason: (binding.lock_reason as string | null) ?? null
+      })
+    }
+  }
+
   return {
-    users: ((data ?? []) as ProfileRow[]).map(mapUser),
+    users: rows.map((row) => ({ ...mapUser(row), deviceLock: locks.get(row.id) ?? null })),
     page: query.page,
     perPage: query.perPage,
     total: count ?? 0

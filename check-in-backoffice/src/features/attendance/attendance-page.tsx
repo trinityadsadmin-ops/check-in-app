@@ -387,7 +387,8 @@ export function AttendancePage() {
             [t('attendance.checkOutComment')]: visit.checkOut?.manualReason ?? '',
             [t('attendance.duration')]: formatDuration(getVisitDurationSeconds(visit), locale),
             [t('attendance.inspection')]: formatInspectionLines(visit.checkIn?.supervisorInspection, t).join('\n'),
-            [t('common.status')]: t(translateStatusKey(day.reviewStatus))
+            [t('common.status')]: t(translateStatusKey(day.reviewStatus)),
+            [t('attendance.missingCheckOut')]: day.missingCheckOut ? '✓' : ''
           }))
         )
       )
@@ -740,6 +741,11 @@ export function AttendancePage() {
                           <Badge variant={statusVariant(day.reviewStatus)}>
                             {t(translateStatusKey(day.reviewStatus))}
                           </Badge>
+                          {day.missingCheckOut ? (
+                            <Badge variant="destructive" className="mt-1 block w-fit">
+                              {t('attendance.missingCheckOut')}
+                            </Badge>
+                          ) : null}
                         </TableCell>
                       ) : null}
                       {index === 0 ? (

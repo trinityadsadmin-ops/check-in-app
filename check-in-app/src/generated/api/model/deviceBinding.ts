@@ -17,4 +17,11 @@ export type DeviceBinding = {
   boundAt: string;
   /** @nullable */
   resetAt: string | null;
+  /** @nullable */
+  lockedAt: string | null;
+  /** @nullable */
+  lockReason: string | null;
+  /** @nullable */
+  lastSeenAt: string | null;
+  hasDeviceKey: boolean;
 } | null;

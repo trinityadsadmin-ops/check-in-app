@@ -5,6 +5,7 @@ import { env } from './config/env.js'
 import { registerOpenApi } from './config/openapi.js'
 import { errorHandler } from './core/errors/error-handler.js'
 import { notFound } from './core/errors/http-error.js'
+import { actionLog } from './middlewares/action-log.js'
 import { contextMiddleware } from './middlewares/context.js'
 import { rateLimit } from './middlewares/rate-limit.js'
 import { requestLogger } from './middlewares/request-logger.js'
@@ -28,7 +29,17 @@ export function createApp() {
     cors({
       origin: env.CORS_ORIGINS,
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowHeaders: ['Authorization', 'Content-Type', 'X-Request-Id'],
+      allowHeaders: [
+        'Authorization',
+        'Content-Type',
+        'X-Request-Id',
+        'X-Action-Id',
+        'X-Device-Id',
+        'X-Device-Counter',
+        'X-Device-Signature',
+        'X-Device-Key',
+        'X-Device-Fingerprint'
+      ],
       exposeHeaders: ['X-Request-Id', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
       credentials: true,
       maxAge: 600
@@ -36,6 +47,7 @@ export function createApp() {
   )
   app.use('*', rateLimit)
   app.use('*', requestLogger)
+  app.use('*', actionLog)
 
   const healthRoute = createRoute({
     method: 'get',

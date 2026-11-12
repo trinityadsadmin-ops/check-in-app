@@ -8,12 +8,13 @@ import { toast } from 'sonner'
 import GeofenceMap from '@/components/map/geofence-map'
 import type { LatLng } from '@/components/map/geofence-map'
 import { LocationPermissionHelp } from '@/components/shared/location-permission-help'
-import { useCheckIn, useCheckOut } from '@/generated/api/mobile/mobile'
+import { checkIn as postCheckIn, checkOut as postCheckOut } from '@/generated/api/mobile/mobile'
 import {
   useGetFrontendWorkAreas,
   useListFrontendAttendance
 } from '@/generated/api/frontend/frontend'
-import { ApiError } from '@/lib/api/fetch-client'
+import { ApiError, getApiErrorCode, isDeviceErrorCode } from '@/lib/api/fetch-client'
+import { recordClientFailure, trackAction } from '@/lib/audit/action-log'
 import { closestByCentroid } from '@/lib/geo/distance'
 import { useGeolocation } from '@/lib/geo/use-geolocation'
 import { useAuth } from '@/lib/auth/auth-provider'
@@ -96,8 +97,6 @@ export function CheckInSheet() {
     return latestWorkArea(attendanceQuery.data?.attendanceDays ?? [])
   }, [assignedQuery.data?.workAreas, attendanceQuery.data?.attendanceDays, position])
 
-  const checkInMutation = useCheckIn()
-  const checkOutMutation = useCheckOut()
   const [submitting, setSubmitting] = useState(false)
 
   // Request a fresh GPS fix each time the sheet opens.
@@ -200,17 +199,22 @@ export function CheckInSheet() {
 
   // Confirm location → submit the check-in/out punch directly (no photo).
   // Supervisors checking in get the inspection pop-up first; it calls submit().
+  const actionName = sheet === 'in' ? 'attendance.check_in' : 'attendance.check_out'
+
   const onConfirm = () => {
     if (!manual && !position) {
+      recordClientFailure(actionName, 'LOCATION_UNAVAILABLE', { geoStatus: status })
       toast.error(t.locating)
       request()
       return
     }
     if (manual && reason.trim().length === 0) {
+      recordClientFailure(actionName, 'MANUAL_REASON_REQUIRED', { manual: true })
       toast.error(t.manual_reason_required)
       return
     }
     if (manual && !siteId) {
+      recordClientFailure(actionName, 'MANUAL_SITE_REQUIRED', { manual: true })
       toast.error(t.manual_site_required)
       return
     }
@@ -241,11 +245,24 @@ export function CheckInSheet() {
           ? { supervisorInspection: toInspectionPayload(inspection) }
           : {})
       }
-      if (sheet === 'in') {
-        await checkInMutation.mutateAsync({ data: body })
-      } else {
-        await checkOutMutation.mutateAsync({ data: body })
-      }
+      // INTENT is logged at the tap; the server logs its own RESULT under the
+      // same action id.
+      await trackAction(
+        actionName,
+        (action) =>
+          sheet === 'in'
+            ? postCheckIn(body, { headers: action.headers })
+            : postCheckOut(body, { headers: action.headers }),
+        {
+          manual,
+          lat: position?.lat ?? null,
+          lng: position?.lng ?? null,
+          accuracy: coords?.accuracy ?? null,
+          insideClientCheck: manual ? null : inside,
+          workAreaId: manual ? siteId : null,
+          withInspection: Boolean(inspection && Object.keys(inspection).length > 0)
+        }
+      )
 
       await queryClient.invalidateQueries({
         predicate: (q) => q.queryKey[0] === '/api/frontend/attendance'
@@ -254,7 +271,15 @@ export function CheckInSheet() {
       setInspectionOpen(false)
       closeSheet()
     } catch (error) {
-      if (error instanceof ApiError && error.status === 403) {
+      const code = getApiErrorCode(error)
+      if (isDeviceErrorCode(code)) {
+        // fetch-client already sent the user to the blocked screen.
+        return
+      }
+      if (code === 'MISSING_CHECK_OUT') {
+        const details = (error as ApiError).payload as { error?: { details?: { workDate?: string } } }
+        toast.error(t.missing_checkout_msg.replace('{date}', details?.error?.details?.workDate ?? ''))
+      } else if (error instanceof ApiError && error.status === 403) {
         toast.error(manual ? t.manual_site_not_accessible : t.outside_area)
       } else {
         const message = error instanceof Error ? error.message : t.geo_denied

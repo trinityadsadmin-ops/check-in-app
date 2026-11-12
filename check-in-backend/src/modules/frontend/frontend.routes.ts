@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import { requireAuth } from '../../middlewares/auth.js'
+import { requireTrustedDevice } from '../../middlewares/device.js'
 import { ErrorResponseSchema } from '../../shared/schemas/common.js'
 import type { AppEnv } from '../../types/hono.js'
 import {
@@ -24,6 +25,7 @@ import { getOwnWorkAreas, listOwnAttendance, listOwnPayslips } from './frontend.
 export const frontendRoutes = new OpenAPIHono<AppEnv>()
 
 frontendRoutes.use('*', requireAuth)
+frontendRoutes.use('*', requireTrustedDevice)
 
 const profileRoute = createRoute({
   method: 'get',

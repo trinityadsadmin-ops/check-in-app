@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import type { Context } from 'hono'
 import { forbidden } from '../../core/errors/http-error.js'
 import { requireAuth } from '../../middlewares/auth.js'
+import { requireTrustedDevice } from '../../middlewares/device.js'
 import { ErrorResponseSchema } from '../../shared/schemas/common.js'
 import type { AppEnv } from '../../types/hono.js'
 import {
@@ -27,6 +28,11 @@ import {
   createAreaInspectionUploadUrl,
   deleteOwnAreaInspection
 } from '../area-inspection/area-inspection.service.js'
+import {
+  RecordActionLogsRequestSchema,
+  RecordActionLogsResponseSchema
+} from '../action-logs/action-logs.schemas.js'
+import { recordClientActionLogs } from '../action-logs/action-logs.service.js'
 import { permissions } from '../auth/permissions.js'
 import {
   CreateEmergencyRequestSchema,
@@ -44,6 +50,7 @@ import {
 export const mobileRoutes = new OpenAPIHono<AppEnv>()
 
 mobileRoutes.use('*', requireAuth)
+mobileRoutes.use('*', requireTrustedDevice)
 
 function ensurePermission(c: Context<AppEnv>, permission: string) {
   if (!c.get('currentUser').permissions.includes(permission)) {
@@ -399,5 +406,44 @@ mobileRoutes.openapi(cancelEmergencyRoute, async (c) => {
       c
     }),
     200
+  )
+})
+
+const recordActionLogsRoute = createRoute({
+  method: 'post',
+  path: '/action-logs',
+  operationId: 'recordActionLogs',
+  tags: ['Mobile'],
+  request: {
+    body: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: RecordActionLogsRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    201: {
+      description: 'Client-side action log entries (button pressed / outcome seen in the app)',
+      content: {
+        'application/json': {
+          schema: RecordActionLogsResponseSchema
+        }
+      }
+    },
+    ...commonErrorResponses
+  }
+})
+
+mobileRoutes.openapi(recordActionLogsRoute, async (c) => {
+  return c.json(
+    await recordClientActionLogs({
+      c,
+      userId: c.get('currentUser').id,
+      payload: c.req.valid('json')
+    }),
+    201
   )
 })

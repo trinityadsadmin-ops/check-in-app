@@ -16,6 +16,7 @@ import {
   getGetUserWorkAreasUrl,
   getImportSalaryUploadUrl,
   getListAttendanceUrl,
+  getListActionLogsUrl,
   getListAuditLogsUrl,
   getListBackofficeUsersUrl,
   getListEmergencyLogsUrl,
@@ -55,6 +56,8 @@ import type {
   EmployeeWorkAreasResponse,
   ImportSalaryRequest,
   ImportSalaryResponse,
+  ListActionLogsParams,
+  ListActionLogsResponse,
   ListAuditLogsParams,
   ListAuditLogsResponse,
   ListAttendanceParams,
@@ -284,4 +287,8 @@ export function listAuditLogs(params: ListAuditLogsParams = {}) {
 
 export function listEventLogs(params: ListEventLogsParams = {}) {
   return fetchJson<ListEventLogsResponse>(getListEventLogsUrl(params))
+}
+
+export function listActionLogs(params: ListActionLogsParams = {}) {
+  return fetchJson<ListActionLogsResponse>(getListActionLogsUrl(params))
 }

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Role } from './role';
+import type { BackofficeUserDeviceLock } from './backofficeUserDeviceLock';
 
 export interface BackofficeUser {
   id: string;
@@ -19,4 +20,6 @@ export interface BackofficeUser {
   isActive: boolean;
   /** @nullable */
   createdAt: string | null;
+  /** @nullable */
+  deviceLock?: BackofficeUserDeviceLock;
 }

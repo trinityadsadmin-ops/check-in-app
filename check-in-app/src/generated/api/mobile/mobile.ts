@@ -38,7 +38,9 @@ import type {
   DeleteAreaInspectionResponse,
   EmergencyLogResponse,
   ErrorResponse,
-  ListActiveEmergenciesResponse
+  ListActiveEmergenciesResponse,
+  RecordActionLogsRequest,
+  RecordActionLogsResponse
 } from '.././model';
 
 import { customFetch } from '../../../lib/api/fetch-client';
@@ -51,15 +53,15 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 export const getCreateAttendanceUploadUrlUrl = () => {
 
 
-
+  
 
   return `/api/mobile/attendance/upload-url`
 }
 
 export const createAttendanceUploadUrl = async (createAttendanceUploadUrlRequest: CreateAttendanceUploadUrlRequest, options?: RequestInit): Promise<CreateAttendanceUploadUrlResponse> => {
-
+  
   return customFetch<CreateAttendanceUploadUrlResponse>(getCreateAttendanceUploadUrlUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -82,7 +84,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAttendanceUploadUrl>>, {data: CreateAttendanceUploadUrlRequest}> = (props) => {
@@ -91,7 +93,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  createAttendanceUploadUrl(data,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -116,15 +118,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export const getCheckInUrl = () => {
 
 
-
+  
 
   return `/api/mobile/attendance/check-in`
 }
 
 export const checkIn = async (confirmAttendanceRequest: ConfirmAttendanceRequest, options?: RequestInit): Promise<ConfirmAttendanceResponse> => {
-
+  
   return customFetch<ConfirmAttendanceResponse>(getCheckInUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -147,7 +149,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkIn>>, {data: ConfirmAttendanceRequest}> = (props) => {
@@ -156,7 +158,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  checkIn(data,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -181,15 +183,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export const getCheckOutUrl = () => {
 
 
-
+  
 
   return `/api/mobile/attendance/check-out`
 }
 
 export const checkOut = async (confirmAttendanceRequest: ConfirmAttendanceRequest, options?: RequestInit): Promise<ConfirmAttendanceResponse> => {
-
+  
   return customFetch<ConfirmAttendanceResponse>(getCheckOutUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -212,7 +214,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkOut>>, {data: ConfirmAttendanceRequest}> = (props) => {
@@ -221,7 +223,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  checkOut(data,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -246,15 +248,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export const getCreateAreaInspectionUploadUrlUrl = () => {
 
 
-
+  
 
   return `/api/mobile/area-inspections/upload-url`
 }
 
 export const createAreaInspectionUploadUrl = async (createAreaInspectionUploadUrlRequest: CreateAreaInspectionUploadUrlRequest, options?: RequestInit): Promise<CreateAreaInspectionUploadUrlResponse> => {
-
+  
   return customFetch<CreateAreaInspectionUploadUrlResponse>(getCreateAreaInspectionUploadUrlUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -277,7 +279,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAreaInspectionUploadUrl>>, {data: CreateAreaInspectionUploadUrlRequest}> = (props) => {
@@ -286,7 +288,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  createAreaInspectionUploadUrl(data,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -311,15 +313,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export const getCreateAreaInspectionUrl = () => {
 
 
-
+  
 
   return `/api/mobile/area-inspections`
 }
 
 export const createAreaInspection = async (createAreaInspectionRequest: CreateAreaInspectionRequest, options?: RequestInit): Promise<AreaInspectionResponse> => {
-
+  
   return customFetch<AreaInspectionResponse>(getCreateAreaInspectionUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -342,7 +344,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAreaInspection>>, {data: CreateAreaInspectionRequest}> = (props) => {
@@ -351,7 +353,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  createAreaInspection(data,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -376,19 +378,19 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export const getDeleteAreaInspectionUrl = (areaInspectionId: string,) => {
 
 
-
+  
 
   return `/api/mobile/area-inspections/${areaInspectionId}`
 }
 
 export const deleteAreaInspection = async (areaInspectionId: string, options?: RequestInit): Promise<DeleteAreaInspectionResponse> => {
-
+  
   return customFetch<DeleteAreaInspectionResponse>(getDeleteAreaInspectionUrl(areaInspectionId),
-  {
+  {      
     ...options,
     method: 'DELETE'
-
-
+    
+    
   }
 );}
 
@@ -406,7 +408,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAreaInspection>>, {areaInspectionId: string}> = (props) => {
@@ -415,13 +417,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  deleteAreaInspection(areaInspectionId,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
 
     export type DeleteAreaInspectionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAreaInspection>>>
-
+    
     export type DeleteAreaInspectionMutationError = ErrorResponse | ErrorResponse
 
     export const useDeleteAreaInspection = <TError = ErrorResponse | ErrorResponse,
@@ -440,15 +442,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export const getCreateEmergencyUrl = () => {
 
 
-
+  
 
   return `/api/mobile/emergency`
 }
 
 export const createEmergency = async (createEmergencyRequest: CreateEmergencyRequest, options?: RequestInit): Promise<CreateEmergencyResponse> => {
-
+  
   return customFetch<CreateEmergencyResponse>(getCreateEmergencyUrl(),
-  {
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -471,7 +473,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEmergency>>, {data: CreateEmergencyRequest}> = (props) => {
@@ -480,7 +482,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  createEmergency(data,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -505,19 +507,19 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export const getListActiveEmergenciesUrl = () => {
 
 
-
+  
 
   return `/api/mobile/emergency/active`
 }
 
 export const listActiveEmergencies = async ( options?: RequestInit): Promise<ListActiveEmergenciesResponse> => {
-
+  
   return customFetch<ListActiveEmergenciesResponse>(getListActiveEmergenciesUrl(),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 );}
 
@@ -527,7 +529,7 @@ export const getListActiveEmergenciesQueryKey = () => {
     return [`/api/mobile/emergency/active`] as const;
     }
 
-
+    
 export const getListActiveEmergenciesQueryOptions = <TData = Awaited<ReturnType<typeof listActiveEmergencies>>, TError = ErrorResponse | ErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActiveEmergencies>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
@@ -535,13 +537,13 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListActiveEmergenciesQueryKey();
 
-
+  
 
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listActiveEmergencies>>> = ({ signal }) => listActiveEmergencies({ signal, ...requestOptions });
 
+      
 
-
-
+      
 
    return  { queryKey, queryFn,   staleTime: 30000, refetchOnWindowFocus: false,  ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listActiveEmergencies>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
@@ -577,7 +579,7 @@ export function useListActiveEmergencies<TData = Awaited<ReturnType<typeof listA
 
 export function useListActiveEmergencies<TData = Awaited<ReturnType<typeof listActiveEmergencies>>, TError = ErrorResponse | ErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActiveEmergencies>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
+ , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListActiveEmergenciesQueryOptions(options)
@@ -594,19 +596,19 @@ export function useListActiveEmergencies<TData = Awaited<ReturnType<typeof listA
 export const getCancelEmergencyUrl = (emergencyLogId: string,) => {
 
 
-
+  
 
   return `/api/mobile/emergency/${emergencyLogId}/cancel`
 }
 
 export const cancelEmergency = async (emergencyLogId: string, options?: RequestInit): Promise<EmergencyLogResponse> => {
-
+  
   return customFetch<EmergencyLogResponse>(getCancelEmergencyUrl(emergencyLogId),
-  {
+  {      
     ...options,
     method: 'POST'
-
-
+    
+    
   }
 );}
 
@@ -624,7 +626,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {...options, mutation: {...options.mutation, mutationKey}}
       : {mutation: { mutationKey, }, request: undefined};
 
-
+      
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelEmergency>>, {emergencyLogId: string}> = (props) => {
@@ -633,13 +635,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           return  cancelEmergency(emergencyLogId,requestOptions)
         }
 
-
+        
 
 
   return  { mutationFn, ...mutationOptions }}
 
     export type CancelEmergencyMutationResult = NonNullable<Awaited<ReturnType<typeof cancelEmergency>>>
-
+    
     export type CancelEmergencyMutationError = ErrorResponse | ErrorResponse
 
     export const useCancelEmergency = <TError = ErrorResponse | ErrorResponse,
@@ -655,3 +657,69 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
       return useMutation(mutationOptions , queryClient);
     }
+    export const getRecordActionLogsUrl = () => {
+
+
+  
+
+  return `/api/mobile/action-logs`
+}
+
+export const recordActionLogs = async (recordActionLogsRequest: RecordActionLogsRequest, options?: RequestInit): Promise<RecordActionLogsResponse> => {
+  
+  return customFetch<RecordActionLogsResponse>(getRecordActionLogsUrl(),
+  {      
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      recordActionLogsRequest,)
+  }
+);}
+
+
+
+
+export const getRecordActionLogsMutationOptions = <TError = ErrorResponse | ErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordActionLogs>>, TError,{data: RecordActionLogsRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordActionLogs>>, TError,{data: RecordActionLogsRequest}, TContext> => {
+
+const mutationKey = ['recordActionLogs'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordActionLogs>>, {data: RecordActionLogsRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordActionLogs(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordActionLogsMutationResult = NonNullable<Awaited<ReturnType<typeof recordActionLogs>>>
+    export type RecordActionLogsMutationBody = RecordActionLogsRequest
+    export type RecordActionLogsMutationError = ErrorResponse | ErrorResponse
+
+    export const useRecordActionLogs = <TError = ErrorResponse | ErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordActionLogs>>, TError,{data: RecordActionLogsRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordActionLogs>>,
+        TError,
+        {data: RecordActionLogsRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getRecordActionLogsMutationOptions(options);
+
+      return useMutation(mutationOptions , queryClient);
+    }
+    

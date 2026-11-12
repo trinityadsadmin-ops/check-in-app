@@ -12,7 +12,8 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useGetFrontendProfile } from '@/generated/api/frontend/frontend'
-import { useCancelEmergency, useCreateEmergency } from '@/generated/api/mobile/mobile'
+import { cancelEmergency, createEmergency } from '@/generated/api/mobile/mobile'
+import { trackAction } from '@/lib/audit/action-log'
 import { ApiError } from '@/lib/api/fetch-client'
 import { useGeolocation } from '@/lib/geo/use-geolocation'
 import { useI18n } from '@/lib/i18n/i18n-provider'
@@ -44,8 +45,7 @@ export function ActiveAlert() {
   const { activeAlert, activeAlertId, setActiveAlert, online } = useShell()
   const { coords, request } = useGeolocation()
   const profile = useGetFrontendProfile()
-  const createEmergency = useCreateEmergency()
-  const cancelEmergency = useCancelEmergency()
+  const cancellingRef = useRef(false)
 
   const [elapsed, setElapsed] = useState(0)
   const startRef = useRef<number | null>(null)
@@ -90,19 +90,21 @@ export function ActiveAlert() {
   // Depends on the stable `mutateAsync` (not the mutation object, whose identity
   // changes every render) so a failed send doesn't re-trigger in a retry loop —
   // it re-runs only when connectivity or the alert state changes.
-  const sendEmergency = createEmergency.mutateAsync
   useEffect(() => {
     if (!online || activeAlert !== 'queued' || sendingRef.current) return
     sendingRef.current = true
     const point = coordsRef.current
-    sendEmergency({
-        data: {
-          lat: point?.lat ?? 0,
-          lng: point?.lng ?? 0,
-          emergencyType: EMERGENCY_TYPE,
-          triggeredAt: new Date().toISOString()
-        }
-      })
+    const data = {
+      lat: point?.lat ?? 0,
+      lng: point?.lng ?? 0,
+      emergencyType: EMERGENCY_TYPE,
+      triggeredAt: new Date().toISOString()
+    }
+    trackAction(
+      'emergency.create',
+      (action) => createEmergency(data, { headers: action.headers }),
+      { lat: data.lat, lng: data.lng, sentFromQueue: true }
+    )
       .then(({ emergencyLog }) => {
         startRef.current = Date.now()
         setElapsed(0)
@@ -115,7 +117,7 @@ export function ActiveAlert() {
       .finally(() => {
         sendingRef.current = false
       })
-  }, [online, activeAlert, sendEmergency, setActiveAlert, t])
+  }, [online, activeAlert, setActiveAlert, t])
 
   // Toast on transition back to 'none' via cancel (not on initial mount).
   useEffect(() => {
@@ -131,16 +133,20 @@ export function ActiveAlert() {
   // (never-sent) alert has no backend row and is cleared locally.
   const cancel = () => {
     if (activeAlert === 'active' && activeAlertId) {
-      if (cancelEmergency.isPending) return
-      cancelEmergency.mutate(
-        { emergencyLogId: activeAlertId },
-        {
-          onSuccess: () => setActiveAlert('none'),
-          onError: (error: unknown) => {
-            toast.error(error instanceof ApiError ? error.message : t.emergency)
-          }
-        }
+      if (cancellingRef.current) return
+      cancellingRef.current = true
+      trackAction(
+        'emergency.cancel',
+        (action) => cancelEmergency(activeAlertId, { headers: action.headers }),
+        { emergencyLogId: activeAlertId }
       )
+        .then(() => setActiveAlert('none'))
+        .catch((error: unknown) => {
+          toast.error(error instanceof ApiError ? error.message : t.emergency)
+        })
+        .finally(() => {
+          cancellingRef.current = false
+        })
       return
     }
     setActiveAlert('none')

@@ -3,7 +3,8 @@
 import { ArrowLeft, BellRing, TriangleAlert } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { useCreateEmergency } from '@/generated/api/mobile/mobile'
+import { createEmergency } from '@/generated/api/mobile/mobile'
+import { beginAction, trackAction } from '@/lib/audit/action-log'
 import { ApiError } from '@/lib/api/fetch-client'
 import { useGeolocation } from '@/lib/geo/use-geolocation'
 import { useI18n } from '@/lib/i18n/i18n-provider'
@@ -32,7 +33,6 @@ export function SosPanel() {
   const { t } = useI18n()
   const { sos, online, setActiveAlert } = useShell()
   const { coords, request } = useGeolocation()
-  const createEmergency = useCreateEmergency()
 
   const [holding, setHolding] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -75,6 +75,8 @@ export function SosPanel() {
 
     // Offline → queue locally; the active-alert overlay shows the queued state.
     if (!online) {
+      // The press itself is logged now; the send is logged when it goes out.
+      beginAction('emergency.trigger_offline', { lat, lng }).succeed()
       setActiveAlert('queued')
       sos.close()
       setProgress(0)
@@ -83,14 +85,20 @@ export function SosPanel() {
     }
 
     try {
-      const { emergencyLog } = await createEmergency.mutateAsync({
-        data: {
-          lat,
-          lng,
-          emergencyType: EMERGENCY_TYPE,
-          triggeredAt: new Date().toISOString()
-        }
-      })
+      const { emergencyLog } = await trackAction(
+        'emergency.create',
+        (action) =>
+          createEmergency(
+            {
+              lat,
+              lng,
+              emergencyType: EMERGENCY_TYPE,
+              triggeredAt: new Date().toISOString()
+            },
+            { headers: action.headers }
+          ),
+        { lat, lng }
+      )
       setActiveAlert('active', emergencyLog.id)
       sos.close()
     } catch (error) {
@@ -100,7 +108,7 @@ export function SosPanel() {
       setProgress(0)
       setFiring(false)
     }
-  }, [firing, online, createEmergency, setActiveAlert, sos, stopRaf, t])
+  }, [firing, online, setActiveAlert, sos, stopRaf, t])
 
   const tick = useCallback(() => {
     if (!holdingRef.current) return

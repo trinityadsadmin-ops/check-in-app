@@ -162,6 +162,8 @@ export type AttendanceRow = {
   workLocationName: string | null
   /** How long the check-in this closes lasted, in seconds. Only set on check-out rows. */
   durationSeconds: number | null
+  /** The day's final check-in was never checked out (flagged for review). */
+  missingCheckOut: boolean
 }
 
 function dayMeta(workDate: string, lang: 'th' | 'en', todayLabel: string, yesterdayLabel: string): string {
@@ -194,7 +196,7 @@ export function toRows(
     const eventsDesc = nonNull(day.events).sort(
       (a, b) => new Date(b.capturedAt).getTime() - new Date(a.capturedAt).getTime()
     )
-    for (const event of eventsDesc) {
+    for (const [index, event] of eventsDesc.entries()) {
       const isCheckIn = event.type === 'CHECK_IN'
       const inside = isInside(event)
       const workLocationId = event.workAreaSnapshot?.workLocationId
@@ -207,9 +209,20 @@ export function toRows(
         tag: inside ? labels.tagIn : labels.tagOut,
         inside,
         workLocationName: workLocationId ? (locationNameById.get(workLocationId) ?? null) : null,
-        durationSeconds: event.durationSeconds
+        durationSeconds: event.durationSeconds,
+        missingCheckOut: day.missingCheckOut && index === 0
       })
     }
   }
   return rows
+}
+
+/**
+ * The most recent earlier day, if it was left checked in. Shifts never cross
+ * midnight, so the backend flags it as missing a check-out; Home warns about it.
+ */
+export function latestMissingCheckOut(days: AttendanceDay[]): AttendanceDay | null {
+  const todayKey = localDateKey(new Date())
+  const previous = sortDaysDesc(days).find((day) => day.workDate < todayKey)
+  return previous?.missingCheckOut ? previous : null
 }

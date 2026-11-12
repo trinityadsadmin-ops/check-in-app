@@ -1,6 +1,11 @@
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import type { Context } from 'hono'
 import { forbidden } from '../../core/errors/http-error.js'
+import {
+  ListActionLogsQuerySchema,
+  ListActionLogsResponseSchema
+} from '../action-logs/action-logs.schemas.js'
+import { listActionLogs } from '../action-logs/action-logs.service.js'
 import { requireAuth } from '../../middlewares/auth.js'
 import { permissions } from '../auth/permissions.js'
 import {
@@ -1349,4 +1354,30 @@ const listEventLogsRoute = createRoute({
 backofficeRoutes.openapi(listEventLogsRoute, async (c) => {
   ensurePermission(c, permissions.logsRead)
   return c.json(await listEventLogs(c.req.valid('query')), 200)
+})
+
+const listActionLogsRoute = createRoute({
+  method: 'get',
+  path: '/action-logs',
+  operationId: 'listActionLogs',
+  tags: ['Backoffice'],
+  request: {
+    query: ListActionLogsQuerySchema
+  },
+  responses: {
+    200: {
+      description: 'Employee action timeline (app intent + client/server results)',
+      content: {
+        'application/json': {
+          schema: ListActionLogsResponseSchema
+        }
+      }
+    },
+    ...commonErrorResponses
+  }
+})
+
+backofficeRoutes.openapi(listActionLogsRoute, async (c) => {
+  ensurePermission(c, permissions.logsRead)
+  return c.json(await listActionLogs(c.req.valid('query')), 200)
 })

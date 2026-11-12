@@ -3,6 +3,7 @@
 import { Clock, Info, MapPin, RotateCcw, Scan, Send, SwitchCamera, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { beginAction, recordClientFailure } from '@/lib/audit/action-log'
 import { useGeolocation } from '@/lib/geo/use-geolocation'
 import { useI18n } from '@/lib/i18n/i18n-provider'
 
@@ -113,8 +114,13 @@ export function CameraCapture({
           await videoRef.current.play().catch(() => {})
         }
         setStreamReady(true)
-      } catch {
+      } catch (error) {
         // No camera / permission denied → file-input fallback path.
+        recordClientFailure(
+          'camera.open',
+          error instanceof Error && error.name ? error.name : 'CAMERA_UNAVAILABLE',
+          { facing }
+        )
         setStreamReady(false)
       }
     }
@@ -169,7 +175,12 @@ export function CameraCapture({
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
         canvas.toBlob(
           (blob) => {
-            if (blob) acceptBlob(blob)
+            if (blob) {
+              beginAction('camera.capture', { source: 'stream', facing }).succeed()
+              acceptBlob(blob)
+            } else {
+              recordClientFailure('camera.capture', 'CAPTURE_FAILED', { source: 'stream' })
+            }
           },
           'image/jpeg',
           0.9
@@ -179,13 +190,21 @@ export function CameraCapture({
     }
     // No live stream → trigger the native camera/file picker.
     fileInputRef.current?.click()
-  }, [streamReady, acceptBlob])
+  }, [streamReady, acceptBlob, facing])
 
   const onFilePicked = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       event.target.value = ''
-      if (file) acceptBlob(file)
+      if (file) {
+        // Picker photos may not be live shots; keep the file's own timestamp as evidence.
+        beginAction('camera.capture', {
+          source: 'file',
+          fileType: file.type,
+          fileLastModified: new Date(file.lastModified).toISOString()
+        }).succeed()
+        acceptBlob(file)
+      }
     },
     [acceptBlob]
   )

@@ -94,6 +94,9 @@ export const AttendanceDaySchema = z
     /** All check-in/check-out events for the day, oldest first. A day may
      *  contain multiple alternating CHECK_IN/CHECK_OUT cycles. */
     events: z.array(AttendanceEventSchema),
+    /** A past day whose last event is a CHECK_IN: the employee never checked
+     *  out. Shifts never cross midnight, so it needs supervisor review. */
+    missingCheckOut: z.boolean(),
     createdAt: z.string().datetime()
   })
   .openapi('AttendanceDay')

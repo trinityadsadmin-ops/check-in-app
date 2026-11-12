@@ -9,5 +9,9 @@ export type AppEnv = {
     authUser: User
     currentUser: AppProfile
     accessToken: string
+    /** Bound device of the caller, set once its signature has been verified. */
+    deviceUuid: string | undefined
+    /** User an unauthenticated route (sign-in) resolved, for action logging. */
+    actorUserId: string | undefined
   }
 }

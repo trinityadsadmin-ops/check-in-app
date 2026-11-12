@@ -566,6 +566,19 @@ export function UsersTable() {
                               {user.isActive ? t('common.active') : t('common.inactive')}
                             </Badge>
                           </Button>
+                          {user.deviceLock ? (
+                            <Badge
+                              variant="destructive"
+                              className="mt-1 block w-fit"
+                              title={
+                                user.deviceLock.reason
+                                  ? lockReasonLabel(user.deviceLock.reason, t)
+                                  : undefined
+                              }
+                            >
+                              {t('users.deviceLocked')}
+                            </Badge>
+                          ) : null}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {user.createdAt ? new Date(user.createdAt).toLocaleString(locale) : '-'}
@@ -1155,4 +1168,17 @@ export function UsersTable() {
     </AlertDialog>
     </>
   )
+}
+
+function lockReasonLabel(reason: string, t: ReturnType<typeof useI18n>['t']) {
+  switch (reason) {
+    case 'CLONE_SUSPECTED':
+      return t('users.lock.CLONE_SUSPECTED')
+    case 'KEY_MISMATCH':
+      return t('users.lock.KEY_MISMATCH')
+    case 'DEVICE_CHANGED':
+      return t('users.lock.DEVICE_CHANGED')
+    default:
+      return reason
+  }
 }

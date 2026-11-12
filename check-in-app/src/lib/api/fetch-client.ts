@@ -1,3 +1,4 @@
+import { getDeviceSignatureHeaders } from '@/lib/auth/device-key'
 import { clearStoredSession, getAuthorizationHeaders, getStoredSession, setStoredSession } from './session'
 
 /**
@@ -15,6 +16,32 @@ function handleUnauthorized(): void {
   }
   clearStoredSession()
   window.location.replace('/login?session=expired')
+}
+
+/**
+ * The backend rejects app requests that don't come from the account's bound,
+ * signed device (`DEVICE_*` codes, e.g. a cloned install was locked). The
+ * session is useless from here, so drop it and show the blocked screen.
+ */
+function handleDeviceRejected(code: string): void {
+  if (typeof window === 'undefined' || window.location.pathname.startsWith('/login')) {
+    return
+  }
+  clearStoredSession()
+  window.location.replace(`/login?device=${encodeURIComponent(code)}`)
+}
+
+/** The backend error code (`ErrorResponse.error.code`) of a failed call, if any. */
+export function getApiErrorCode(error: unknown): string | null {
+  if (!(error instanceof ApiError)) {
+    return null
+  }
+  const code = (error.payload as { error?: { code?: unknown } } | null)?.error?.code
+  return typeof code === 'string' ? code : null
+}
+
+export function isDeviceErrorCode(code: string | null): code is string {
+  return code !== null && code.startsWith('DEVICE_')
 }
 
 /**
@@ -126,36 +153,44 @@ async function refreshAccessToken(): Promise<boolean> {
  * giving up and forcing a re-login.
  */
 export const customFetch = async <T>(url: string, options: RequestInit = {}): Promise<T> => {
-  const headers = new Headers(options.headers)
-
-  for (const [key, value] of Object.entries(getAuthorizationHeaders())) {
-    if (!headers.has(key)) {
+  // Every request is signed by the device key (with a fresh counter), so a
+  // retry must be signed again rather than reuse the first request's headers.
+  const buildHeaders = async () => {
+    const headers = new Headers(options.headers)
+    for (const [key, value] of Object.entries(getAuthorizationHeaders())) {
       headers.set(key, value)
     }
+    const deviceHeaders = await getDeviceSignatureHeaders(options.method ?? 'GET', url)
+    for (const [key, value] of Object.entries(deviceHeaders ?? {})) {
+      headers.set(key, value)
+    }
+    return headers
   }
 
-  const { response, data } = await rawFetch(url, { ...options, headers })
+  const fail = (status: number, payload: unknown): never => {
+    if (status === 401) {
+      handleUnauthorized()
+    }
+    const error = new ApiError(status, payload)
+    const code = getApiErrorCode(error)
+    if (status === 403 && isDeviceErrorCode(code)) {
+      handleDeviceRejected(code)
+    }
+    throw error
+  }
+
+  const { response, data } = await rawFetch(url, { ...options, headers: await buildHeaders() })
 
   if (response.status === 401 && !url.endsWith(REFRESH_PATH) && (await refreshAccessToken())) {
-    const retryHeaders = new Headers(options.headers)
-    for (const [key, value] of Object.entries(getAuthorizationHeaders())) {
-      retryHeaders.set(key, value)
-    }
-    const retry = await rawFetch(url, { ...options, headers: retryHeaders })
+    const retry = await rawFetch(url, { ...options, headers: await buildHeaders() })
     if (!retry.response.ok) {
-      if (retry.response.status === 401) {
-        handleUnauthorized()
-      }
-      throw new ApiError(retry.response.status, retry.data)
+      return fail(retry.response.status, retry.data)
     }
     return retry.data as T
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
-      handleUnauthorized()
-    }
-    throw new ApiError(response.status, data)
+    return fail(response.status, data)
   }
 
   return data as T

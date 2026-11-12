@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { env } from '../../config/env.js'
-import { badRequest, forbidden, notFound } from '../../core/errors/http-error.js'
+import { badRequest, forbidden, missingCheckOut, notFound } from '../../core/errors/http-error.js'
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { writeAuditLog, writeEventLog } from '../logs/logs.service.js'
 import {
@@ -8,6 +8,7 @@ import {
   listActiveWorkAreasForUser
 } from '../work-locations/work-location-assignment.service.js'
 import { getBangkokDate, type LatLngNode } from './geo.js'
+import { isMissingCheckOut } from './missing-check-out.js'
 import { resolveSupervisorInspection, type SupervisorInspection } from './supervisor-inspection.js'
 import type {
   AttendanceEventType,
@@ -202,6 +203,7 @@ async function mapAttendanceDay(
     checkIn: checkIns[0] ?? null,
     checkOut: checkOuts[checkOuts.length - 1] ?? null,
     events: mapped,
+    missingCheckOut: isMissingCheckOut(day.work_date, mapped.at(-1)?.type ?? null, getBangkokDate()),
     createdAt: day.created_at
   }
 }
@@ -248,6 +250,35 @@ async function getAttendanceDayForDate(userId: string, workDate: string) {
   return data as AttendanceDayRow | null
 }
 
+/**
+ * The employee's most recent earlier day, when it was left checked in.
+ * Shifts never cross midnight, so such a day can no longer be closed by the
+ * employee — it is surfaced as "missing check-out" for supervisor review.
+ */
+async function findUnclosedPreviousDay(userId: string, workDate: string) {
+  const supabaseAdmin = requireSupabaseAdmin()
+  const { data, error } = await supabaseAdmin
+    .from('attendance_days')
+    .select('id,work_date')
+    .eq('user_id', userId)
+    .lt('work_date', workDate)
+    .order('work_date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  if (!data) {
+    return null
+  }
+
+  return (await getLastEventType(data.id)) === 'CHECK_IN'
+    ? { id: data.id as string, workDate: data.work_date as string }
+    : null
+}
+
 async function assertAttendanceActionAllowed(userId: string, eventType: AttendanceEventType) {
   const workDate = getBangkokDate()
   const day = await getAttendanceDayForDate(userId, workDate)
@@ -260,9 +291,23 @@ async function assertAttendanceActionAllowed(userId: string, eventType: Attendan
     if (lastType === 'CHECK_IN') {
       throw badRequest('You are already checked in')
     }
-  } else if (lastType !== 'CHECK_IN') {
+    // First punch of the day: note whether the previous day was left open.
+    return {
+      unclosedPreviousDay: lastType === null ? await findUnclosedPreviousDay(userId, workDate) : null
+    }
+  }
+
+  if (lastType !== 'CHECK_IN') {
+    // Checking out after midnight for yesterday's shift: say so explicitly
+    // instead of the generic error, so it is not mistaken for a lost punch.
+    const unclosedPreviousDay = lastType === null ? await findUnclosedPreviousDay(userId, workDate) : null
+    if (unclosedPreviousDay) {
+      throw missingCheckOut(unclosedPreviousDay.workDate)
+    }
     throw badRequest('Check-in is required before check-out')
   }
+
+  return { unclosedPreviousDay: null }
 }
 
 async function getLastEventType(
@@ -373,7 +418,7 @@ export async function confirmAttendance(input: {
     throw inspection.status === 403 ? forbidden(inspection.message) : badRequest(inspection.message)
   }
 
-  await assertAttendanceActionAllowed(input.userId, input.eventType)
+  const { unclosedPreviousDay } = await assertAttendanceActionAllowed(input.userId, input.eventType)
 
   const supabaseAdmin = requireSupabaseAdmin()
 
@@ -563,6 +608,18 @@ export async function confirmAttendance(input: {
     },
     c: input.c
   })
+
+  if (unclosedPreviousDay) {
+    await writeEventLog({
+      actorUserId: input.userId,
+      eventType: 'attendance.missing_check_out',
+      severity: 'WARN',
+      resourceType: 'attendance_day',
+      resourceId: unclosedPreviousDay.id,
+      metadata: { workDate: unclosedPreviousDay.workDate, detectedAtCheckInOn: workDate },
+      c: input.c
+    })
+  }
 
   const events = await getAttendanceEventsForDay(day.id)
   return {

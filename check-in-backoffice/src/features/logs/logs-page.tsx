@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table'
 import { listAuditLogs, listEventLogs } from '@/lib/api/backoffice'
 import { useI18n } from '@/lib/i18n'
+import { ActionLogsCard } from './action-logs-card'
 
 export function LogsPage() {
   const { locale, t } = useI18n()
@@ -32,6 +33,8 @@ export function LogsPage() {
 
   return (
     <div className="grid gap-6">
+      <ActionLogsCard />
+
       <Card>
         <CardHeader>
           <CardTitle>{t('logs.auditTitle')}</CardTitle>

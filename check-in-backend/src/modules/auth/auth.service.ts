@@ -3,7 +3,7 @@ import type { Context } from 'hono'
 import { badRequest } from '../../core/errors/http-error.js'
 import { createAuthClient } from '../../db/supabase.js'
 import type { AppEnv } from '../../types/hono.js'
-import { enforceDeviceBinding } from './device.service.js'
+import { shouldEnforceDeviceBinding, verifyTrustedDevice } from './device.service.js'
 import { getProfileForAuthUser, type AppProfile } from './profile.service.js'
 import type {
   RefreshTokenRequest,
@@ -71,12 +71,11 @@ export async function signIn(payload: SignInRequest, c?: Context<AppEnv>) {
   }
 
   const profile = await getProfileForAuthUser(data.user)
-  const device = await enforceDeviceBinding({
-    profile,
-    clientType: payload.clientType,
-    deviceUuid: payload.deviceUuid,
-    c
-  })
+  c?.set('actorUserId', profile.id)
+  const device =
+    c && shouldEnforceDeviceBinding(profile, payload.clientType)
+      ? await verifyTrustedDevice({ profile, c, allowBind: true, deviceUuid: payload.deviceUuid })
+      : null
 
   return {
     user: toUser(profile),

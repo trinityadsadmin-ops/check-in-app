@@ -23,5 +23,6 @@ export interface AttendanceDay {
   checkIn: AttendanceEvent;
   checkOut: AttendanceEvent;
   events: AttendanceEvent[];
+  missingCheckOut: boolean;
   createdAt: string;
 }

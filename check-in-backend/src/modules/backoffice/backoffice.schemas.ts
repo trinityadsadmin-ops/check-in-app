@@ -48,7 +48,15 @@ export const BackofficeUserSchema = z
     employeeCode: z.string().nullable(),
     role: RoleSchema,
     isActive: z.boolean(),
-    createdAt: z.string().nullable()
+    createdAt: z.string().nullable(),
+    /** Set (in user lists) when the user's bound device was locked by anti-cheat checks. */
+    deviceLock: z
+      .object({
+        lockedAt: z.string(),
+        reason: z.string().nullable()
+      })
+      .nullable()
+      .optional()
   })
   .openapi('BackofficeUser')
 
@@ -150,7 +158,11 @@ export const DeviceBindingSchema = z
     deviceUuid: z.string().uuid(),
     isActive: z.boolean(),
     boundAt: z.string().datetime(),
-    resetAt: z.string().datetime().nullable()
+    resetAt: z.string().datetime().nullable(),
+    lockedAt: z.string().datetime().nullable(),
+    lockReason: z.string().nullable(),
+    lastSeenAt: z.string().datetime().nullable(),
+    hasDeviceKey: z.boolean()
   })
   .openapi('DeviceBinding')
 

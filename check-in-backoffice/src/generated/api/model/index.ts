@@ -6,6 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './actionLog';
+export * from './actionLogMetadata';
+export * from './actionLogOutcome';
+export * from './actionLogPhase';
+export * from './actionLogSource';
+export * from './actionLogUser';
 export * from './activeEmergency';
 export * from './activeEmergencyStatus';
 export * from './activeEmergencyUser';
@@ -29,7 +35,12 @@ export * from './authResponse';
 export * from './authResponseDevice';
 export * from './authSession';
 export * from './backofficeUser';
+export * from './backofficeUserDeviceLock';
 export * from './backofficeUserResponse';
+export * from './clientActionLog';
+export * from './clientActionLogMetadata';
+export * from './clientActionLogOutcome';
+export * from './clientActionLogPhase';
 export * from './confirmAttendanceRequest';
 export * from './confirmAttendanceResponse';
 export * from './createAreaInspectionRequest';
@@ -84,6 +95,9 @@ export * from './healthResponseStatus';
 export * from './importSalaryRequest';
 export * from './importSalaryResponse';
 export * from './latLngNode';
+export * from './listActionLogsOutcome';
+export * from './listActionLogsParams';
+export * from './listActionLogsResponse';
 export * from './listActiveEmergenciesResponse';
 export * from './listAreaInspectionsParams';
 export * from './listAreaInspectionsResponse';
@@ -118,6 +132,8 @@ export * from './listUsersResponse';
 export * from './listWorkLocationsParams';
 export * from './listWorkLocationsResponse';
 export * from './permission';
+export * from './recordActionLogsRequest';
+export * from './recordActionLogsResponse';
 export * from './refreshTokenRequest';
 export * from './resetDeviceRequest';
 export * from './resetDeviceResponse';

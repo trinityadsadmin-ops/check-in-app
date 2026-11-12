@@ -10,9 +10,10 @@ import {
   useGetCurrentUser
 } from '@/generated/api/auth/auth'
 import { SignInRequestClientType, type SignInRequest, type User } from '@/generated/api/model'
-import { ApiError } from '@/lib/api/fetch-client'
+import { ApiError, getApiErrorCode } from '@/lib/api/fetch-client'
 import { clearStoredSession, getStoredSession, setStoredSession } from '@/lib/api/session'
 import { getDeviceUuid, setDeviceUuid } from '@/lib/auth/device'
+import { flushActionLogs, trackAction } from '@/lib/audit/action-log'
 
 type AuthContextValue = {
   user: User | null
@@ -25,6 +26,10 @@ type AuthContextValue = {
    * different device (backend 403). The login screen renders the blocked card.
    */
   blocked: boolean
+  /** Backend `DEVICE_*` code behind `blocked` (e.g. `DEVICE_LOCKED`), if known. */
+  blockedReason: string | null
+  /** Shows the blocked card for a device rejection that happened elsewhere. */
+  markBlocked: (reason: string) => void
   /** Clears the blocked flag (e.g. after the admin resets the binding). */
   clearBlocked: () => void
 }
@@ -45,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasSession, setHasSession] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
   const [blocked, setBlocked] = useState(false)
+  const [blockedReason, setBlockedReason] = useState<string | null>(null)
 
   // localStorage is only available on the client, so resolve the session after mount.
   useEffect(() => {
@@ -73,6 +79,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearBlocked = useCallback(() => {
     setBlocked(false)
+    setBlockedReason(null)
+  }, [])
+
+  const markBlocked = useCallback((reason: string) => {
+    setBlocked(true)
+    setBlockedReason(reason)
   }, [])
 
   const signIn = useCallback(
@@ -87,12 +99,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       let response
       try {
-        response = await apiSignIn(payload)
+        response = await trackAction(
+          'auth.sign_in',
+          (action) => apiSignIn(payload, { headers: action.headers }),
+          { email: payload.email }
+        )
       } catch (error) {
         // A device-bound rejection (403) surfaces as the blocked state; the login
         // screen reads `blocked` and/or inspects the rethrown ApiError.
         if (isDeviceBlockedError(error)) {
           setBlocked(true)
+          setBlockedReason(getApiErrorCode(error))
         }
         throw error
       }
@@ -119,15 +136,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshToken: response.session.refreshToken
       })
       setBlocked(false)
+      setBlockedReason(null)
       setHasSession(true)
+      void flushActionLogs()
       await queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() })
     },
     [queryClient]
   )
 
   const signOut = useCallback(async () => {
+    // Upload pending action logs while the session is still valid.
+    await flushActionLogs()
     try {
-      await apiSignOut()
+      await trackAction('auth.sign_out', (action) => apiSignOut({ headers: action.headers }))
     } catch {
       // Ignore server/network errors on sign-out; we always clear locally.
     }
@@ -145,9 +166,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signOut,
       blocked,
+      blockedReason,
+      markBlocked,
       clearBlocked
     }),
-    [hasSession, isHydrated, meQuery.data, meQuery.isLoading, signIn, signOut, blocked, clearBlocked]
+    [
+      hasSession,
+      isHydrated,
+      meQuery.data,
+      meQuery.isLoading,
+      signIn,
+      signOut,
+      blocked,
+      blockedReason,
+      markBlocked,
+      clearBlocked
+    ]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
