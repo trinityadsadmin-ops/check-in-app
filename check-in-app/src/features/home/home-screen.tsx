@@ -241,7 +241,13 @@ export function HomeScreen() {
           <div>
             <div style={{ fontWeight: 600 }}>{t.missing_checkout_title}</div>
             <div style={{ marginTop: 2 }}>
-              {t.missing_checkout_msg.replace('{date}', missedCheckOutDay.workDate)}
+              {t.missing_checkout_msg.replace(
+                '{date}',
+                new Date(`${missedCheckOutDay.workDate}T00:00:00`).toLocaleDateString(
+                  lang === 'th' ? 'th-TH' : 'en-GB',
+                  { day: 'numeric', month: 'long', year: 'numeric' }
+                )
+              )}
             </div>
           </div>
         </div>

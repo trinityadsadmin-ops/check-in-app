@@ -34,7 +34,7 @@ export const en = {
   missing_checkout_title: 'Missing check-out',
   /** `{date}` is replaced with the work date. */
   missing_checkout_msg:
-    'You did not check out on {date}. That day has been flagged for your supervisor to review.',
+    'You did not check out on {date}. That day has been sent to your supervisor and this notice will disappear once they review it.',
   missing_checkout_tag: 'No check-out',
   install_title: 'Add to Home Screen',
   install_sub:
@@ -234,7 +234,7 @@ export const th: Dict = {
     'เบราว์เซอร์นี้ไม่สามารถเก็บกุญแจอุปกรณ์แบบปลอดภัยได้ กรุณาเปิดแอปจากหน้าจอหลักผ่าน Safari หรือ Chrome',
   missing_checkout_title: 'ไม่ได้ลงเวลาออก',
   missing_checkout_msg:
-    'คุณไม่ได้ลงเวลาออกในวันที่ {date} วันดังกล่าวถูกส่งให้หัวหน้างานตรวจสอบแล้ว',
+    'คุณไม่ได้ลงเวลาออกในวันที่ {date} วันดังกล่าวถูกส่งให้หัวหน้างานตรวจสอบแล้ว ข้อความนี้จะหายไปเมื่อหัวหน้างานตรวจสอบเรียบร้อย',
   missing_checkout_tag: 'ไม่ได้ลงเวลาออก',
   install_title: 'เพิ่มลงหน้าจอหลัก',
   install_sub:

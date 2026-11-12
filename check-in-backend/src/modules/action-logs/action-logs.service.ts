@@ -149,9 +149,19 @@ export async function listActionLogs(query: ListActionLogsQuery) {
   if (query.from) request = request.gte('created_at', query.from)
   if (query.to) request = request.lte('created_at', query.to)
 
-  const { data, error, count } = await request
-    .order('created_at', { ascending: false })
-    .range(from, to)
+  const ascending = query.sortDirection === 'asc'
+  const sortColumn = {
+    createdAt: 'created_at',
+    clientAt: 'client_at',
+    employee: 'user(full_name)',
+    action: 'action'
+  }[query.sortBy]
+  request = request.order(sortColumn, { ascending, nullsFirst: false })
+  if (query.sortBy !== 'createdAt') {
+    request = request.order('created_at', { ascending: false })
+  }
+  // Stable order across pages when timestamps tie.
+  const { data, error, count } = await request.order('id').range(from, to)
 
   if (error) {
     throw badRequest(error.message)

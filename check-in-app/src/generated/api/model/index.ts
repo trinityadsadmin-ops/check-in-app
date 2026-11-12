@@ -98,6 +98,8 @@ export * from './latLngNode';
 export * from './listActionLogsOutcome';
 export * from './listActionLogsParams';
 export * from './listActionLogsResponse';
+export * from './listActionLogsSortBy';
+export * from './listActionLogsSortDirection';
 export * from './listActiveEmergenciesResponse';
 export * from './listAreaInspectionsParams';
 export * from './listAreaInspectionsResponse';

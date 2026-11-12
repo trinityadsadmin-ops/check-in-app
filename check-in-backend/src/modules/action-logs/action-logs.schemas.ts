@@ -36,7 +36,9 @@ export const ListActionLogsQuerySchema = z.object({
   action: z.string().max(100).optional(),
   outcome: ActionLogOutcomeSchema.optional(),
   from: z.string().datetime().optional(),
-  to: z.string().datetime().optional()
+  to: z.string().datetime().optional(),
+  sortBy: z.enum(['createdAt', 'clientAt', 'employee', 'action']).default('createdAt'),
+  sortDirection: z.enum(['asc', 'desc']).default('desc')
 })
 
 export const ActionLogSchema = z

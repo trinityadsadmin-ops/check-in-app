@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ListActionLogsOutcome } from './listActionLogsOutcome';
+import type { ListActionLogsSortBy } from './listActionLogsSortBy';
+import type { ListActionLogsSortDirection } from './listActionLogsSortDirection';
 
 export type ListActionLogsParams = {
 /**
@@ -27,4 +29,6 @@ action?: string;
 outcome?: ListActionLogsOutcome;
 from?: string;
 to?: string;
+sortBy?: ListActionLogsSortBy;
+sortDirection?: ListActionLogsSortDirection;
 };

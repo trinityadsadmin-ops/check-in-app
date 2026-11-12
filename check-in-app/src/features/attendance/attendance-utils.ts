@@ -218,11 +218,16 @@ export function toRows(
 }
 
 /**
- * The most recent earlier day, if it was left checked in. Shifts never cross
- * midnight, so the backend flags it as missing a check-out; Home warns about it.
+ * The most recent earlier day that was left checked in and has not been
+ * reviewed yet. Shifts never cross midnight, so the backend flags such a day
+ * as missing a check-out; Home keeps warning about it until a supervisor
+ * approves or rejects it.
  */
 export function latestMissingCheckOut(days: AttendanceDay[]): AttendanceDay | null {
   const todayKey = localDateKey(new Date())
-  const previous = sortDaysDesc(days).find((day) => day.workDate < todayKey)
-  return previous?.missingCheckOut ? previous : null
+  return (
+    sortDaysDesc(days).find(
+      (day) => day.workDate < todayKey && day.missingCheckOut && day.reviewStatus === 'PENDING'
+    ) ?? null
+  )
 }
