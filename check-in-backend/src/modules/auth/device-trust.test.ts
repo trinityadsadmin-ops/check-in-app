@@ -8,6 +8,12 @@ import {
   parseCounter,
   parseDeviceFingerprint,
   parseDevicePublicKey,
+  readReplays,
+  readRetiredKeys,
+  recordReplay,
+  retireKey,
+  isRetiredKey,
+  MAX_RETIRED_KEYS,
   verifyDeviceSignature
 } from './device-trust.js'
 
@@ -90,5 +96,59 @@ describe('device fingerprints', () => {
 
   it('drops unknown or malformed fields', () => {
     assert.deepEqual(parseDeviceFingerprint({ platform: 'x', evil: 'y', cores: 'many' }), { platform: 'x' })
+  })
+})
+
+describe('lost device keys', () => {
+  const keyA = { kty: 'EC', crv: 'P-256', x: 'ax', y: 'ay' } as const
+  const keyB = { kty: 'EC', crv: 'P-256', x: 'bx', y: 'by' } as const
+  const now = new Date('2026-11-13T10:00:00Z')
+
+  it('remembers replaced keys so a returning one is caught', () => {
+    const retired = retireKey([], keyA, now)
+    assert.equal(isRetiredKey(retired, keyA), true)
+    assert.equal(isRetiredKey(retired, keyB), false)
+  })
+
+  it('keeps a bounded history', () => {
+    let retired = readRetiredKeys({})
+    for (let i = 0; i < MAX_RETIRED_KEYS + 5; i += 1) {
+      retired = retireKey(retired, { kty: 'EC', crv: 'P-256', x: `x${i}`, y: `y${i}` }, now)
+    }
+    assert.equal(retired.length, MAX_RETIRED_KEYS)
+    assert.equal(retired.at(-1)?.x, `x${MAX_RETIRED_KEYS + 4}`)
+  })
+
+  it('ignores malformed metadata', () => {
+    assert.deepEqual(readRetiredKeys(null), [])
+    assert.deepEqual(readRetiredKeys({ retiredKeys: [{ x: 1 }, 'nope'] }), [])
+    assert.deepEqual(readReplays({ replays: [{ counter: 'a', at: 'b' }] }), [])
+  })
+})
+
+describe('reused counters', () => {
+  const at = (minute: number) => new Date(Date.UTC(2026, 10, 13, 10, minute))
+
+  it('does not lock on a single resent request', () => {
+    const first = recordReplay([], 9, at(0))
+    assert.equal(first.shouldLock, false)
+    const again = recordReplay(first.replays, 9, at(1))
+    assert.equal(again.shouldLock, false)
+  })
+
+  it('locks when several different counters are reused in a short window', () => {
+    let state = recordReplay([], 12, at(0))
+    state = recordReplay(state.replays, 13, at(1))
+    assert.equal(state.shouldLock, false)
+    state = recordReplay(state.replays, 14, at(2))
+    assert.equal(state.shouldLock, true)
+  })
+
+  it('forgets reuses older than the window', () => {
+    let state = recordReplay([], 12, at(0))
+    state = recordReplay(state.replays, 13, at(1))
+    state = recordReplay(state.replays, 14, at(30))
+    assert.equal(state.shouldLock, false)
+    assert.equal(state.replays.length, 1)
   })
 })

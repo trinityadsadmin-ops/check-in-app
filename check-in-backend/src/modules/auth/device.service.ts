@@ -1,4 +1,4 @@
-import { type AppError, badRequest, deviceError } from '../../core/errors/http-error.js'
+import { type AppError, badRequest, deviceCounterReused, deviceError } from '../../core/errors/http-error.js'
 import { requireSupabaseAdmin } from '../../core/supabase/require-admin-client.js'
 import { writeAuditLog, writeEventLog } from '../logs/logs.service.js'
 import type { AppProfile } from './profile.service.js'
@@ -11,9 +11,14 @@ import {
   deviceHeaders,
   diffFingerprints,
   isHardwareChange,
+  isRetiredKey,
   parseCounter,
   parseDeviceFingerprint,
   parseDevicePublicKey,
+  readReplays,
+  readRetiredKeys,
+  recordReplay,
+  retireKey,
   sameDevicePublicKey,
   verifyDeviceSignature,
   type DeviceFingerprint,
@@ -33,6 +38,8 @@ type DeviceBindingRow = {
   locked_at: string | null
   lock_reason: string | null
   last_seen_at: string | null
+  key_enrolled_at: string | null
+  metadata: Record<string, unknown> | null
 }
 
 export type DeviceBindingResult = {
@@ -43,7 +50,7 @@ export type DeviceBindingResult = {
 export type DeviceLockReason = 'CLONE_SUSPECTED' | 'KEY_MISMATCH' | 'DEVICE_CHANGED'
 
 const deviceBindingSelect =
-  'id,user_id,device_uuid,is_active,bound_at,reset_at,reset_by,public_key_jwk,fingerprint,locked_at,lock_reason,last_seen_at'
+  'id,user_id,device_uuid,is_active,bound_at,reset_at,reset_by,public_key_jwk,fingerprint,locked_at,lock_reason,last_seen_at,key_enrolled_at,metadata'
 
 export async function getActiveDeviceBinding(userId: string) {
   const supabaseAdmin = requireSupabaseAdmin()
@@ -156,6 +163,72 @@ async function lockDevice(input: {
 }
 
 /**
+ * The request is validly signed by a key the binding doesn't know. If it comes
+ * from the same device id on the same hardware and the key has never been used
+ * before, the browser lost its stored key (some browsers wipe IndexedDB but
+ * keep localStorage): adopt the new key and restart the counter. A key that was
+ * already replaced coming back, or different hardware, is left for the caller
+ * to lock. Returns the binding to verify against.
+ */
+async function replaceLostDeviceKey(input: {
+  profile: AppProfile
+  c: Context<AppEnv>
+  binding: DeviceBindingRow
+  proof: DeviceProof
+  enrolledKey: DevicePublicKey
+}): Promise<DeviceBindingRow> {
+  const { profile, c, binding, proof, enrolledKey } = input
+  const newKey = proof.publicKey
+  const retired = readRetiredKeys(binding.metadata)
+  const sameHardware =
+    binding.fingerprint !== null &&
+    proof.fingerprint !== null &&
+    !isHardwareChange(diffFingerprints(binding.fingerprint, proof.fingerprint))
+
+  if (!newKey || !sameHardware || isRetiredKey(retired, newKey)) {
+    return binding
+  }
+
+  const supabaseAdmin = requireSupabaseAdmin()
+  const now = new Date()
+  let update = supabaseAdmin
+    .from('device_bindings')
+    .update({
+      public_key_jwk: newKey,
+      key_enrolled_at: now.toISOString(),
+      last_counter: 0,
+      recent_counters: [],
+      metadata: { ...binding.metadata, retiredKeys: retireKey(retired, enrolledKey, now), replays: [] }
+    })
+    .eq('id', binding.id)
+    .is('locked_at', null)
+  // Only replace the key this request saw; parallel requests from the same
+  // page load race here and the losers verify against the winner's key.
+  update = binding.key_enrolled_at ? update.eq('key_enrolled_at', binding.key_enrolled_at) : update.is('key_enrolled_at', null)
+  const { data, error } = await update.select(deviceBindingSelect)
+
+  if (error) {
+    throw badRequest(error.message)
+  }
+
+  if (!data || data.length === 0) {
+    return (await getActiveDeviceBinding(profile.id)) ?? binding
+  }
+
+  await writeEventLog({
+    actorUserId: profile.id,
+    eventType: 'device.key_replaced',
+    severity: 'WARN',
+    resourceType: 'device_binding',
+    resourceId: binding.id,
+    metadata: { path: c.req.path, previousKeyEnrolledAt: binding.key_enrolled_at, retiredKeys: retired.length + 1 },
+    c
+  })
+
+  return data[0] as DeviceBindingRow
+}
+
+/**
  * Verifies that a request comes from the user's bound device:
  *
  * 1. The device id matches the active binding (one device per account).
@@ -166,7 +239,10 @@ async function lockDevice(input: {
  *    original, so as soon as both are used they replay each other's counters.
  * 4. The device's hardware traits have not changed since enrolment.
  *
- * 2–4 lock the binding (an administrator must reset it). Bindings created
+ * 2–4 lock the binding (an administrator must reset it), with two allowances
+ * for browsers that misbehave: a key lost by the browser on the same hardware
+ * is replaced (see `replaceLostDeviceKey`), and a single reused counter only
+ * fails that request (several in a short window still lock). Bindings created
  * before keys existed enrol their key on first use, so nobody is locked out by
  * the rollout.
  *
@@ -334,7 +410,17 @@ export async function verifyTrustedDevice(input: {
     }
   }
 
-  const enrolledKey = binding.public_key_jwk ? parseDevicePublicKey(binding.public_key_jwk) : null
+  let enrolledKey = binding.public_key_jwk ? parseDevicePublicKey(binding.public_key_jwk) : null
+  if (
+    enrolledKey &&
+    proof.publicKey &&
+    !sameDevicePublicKey(proof.publicKey, enrolledKey) &&
+    (await verifyDeviceSignature(proof.publicKey, proof.payload, proof.signature))
+  ) {
+    binding = await replaceLostDeviceKey({ profile, c, binding, proof, enrolledKey })
+    enrolledKey = binding.public_key_jwk ? parseDevicePublicKey(binding.public_key_jwk) : null
+  }
+
   if (!enrolledKey || !(await verifyDeviceSignature(enrolledKey, proof.payload, proof.signature))) {
     // Right device id, wrong key: the id was copied onto another install.
     return lockDevice({
@@ -345,6 +431,10 @@ export async function verifyTrustedDevice(input: {
       metadata: {
         presentedKeyDiffers: Boolean(
           proof.publicKey && enrolledKey && !sameDevicePublicKey(proof.publicKey, enrolledKey)
+        ),
+        // A replaced key in use again: two installs are taking turns.
+        retiredKeyReturned: Boolean(
+          proof.publicKey && isRetiredKey(readRetiredKeys(binding.metadata), proof.publicKey)
         )
       }
     })
@@ -396,12 +486,27 @@ export async function verifyTrustedDevice(input: {
   }
 
   if (counterResult === 'REPLAY') {
-    return lockDevice({
+    const replay = recordReplay(readReplays(binding.metadata), proof.counter as number, new Date())
+    if (replay.shouldLock) {
+      return lockDevice({
+        profile,
+        c,
+        binding,
+        reason: 'CLONE_SUSPECTED',
+        metadata: { counter: proof.counter, replays: replay.replays }
+      })
+    }
+    await supabaseAdmin
+      .from('device_bindings')
+      .update({ metadata: { ...binding.metadata, replays: replay.replays } })
+      .eq('id', binding.id)
+    return rejectDevice({
       profile,
       c,
       binding,
-      reason: 'CLONE_SUSPECTED',
-      metadata: { counter: proof.counter }
+      reason: 'COUNTER_REUSED',
+      metadata: { counter: proof.counter, recentReplays: replay.replays.length },
+      error: deviceCounterReused()
     })
   }
 

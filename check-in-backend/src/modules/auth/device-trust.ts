@@ -121,6 +121,66 @@ export function sameDevicePublicKey(a: DevicePublicKey, b: DevicePublicKey) {
   return a.x === b.x && a.y === b.y
 }
 
+/**
+ * Some browsers (e.g. Vivo's built-in browser) wipe IndexedDB while keeping
+ * localStorage, so the same phone comes back with its device id but a brand
+ * new key. That is a lost key, not a copy, as long as the hardware is the same
+ * and the key has never been seen before. A key that was already replaced
+ * coming back means two installs are taking turns: that stays a lock.
+ */
+export const MAX_RETIRED_KEYS = 20
+
+export type RetiredDeviceKey = { x: string; y: string; retiredAt: string }
+
+export function readRetiredKeys(metadata: unknown): RetiredDeviceKey[] {
+  const value = (metadata as { retiredKeys?: unknown } | null)?.retiredKeys
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value.filter(
+    (key): key is RetiredDeviceKey =>
+      typeof key?.x === 'string' && typeof key?.y === 'string' && typeof key?.retiredAt === 'string'
+  )
+}
+
+export function isRetiredKey(retired: RetiredDeviceKey[], key: DevicePublicKey) {
+  return retired.some((old) => old.x === key.x && old.y === key.y)
+}
+
+export function retireKey(retired: RetiredDeviceKey[], key: DevicePublicKey, now: Date) {
+  return [...retired, { x: key.x, y: key.y, retiredAt: now.toISOString() }].slice(-MAX_RETIRED_KEYS)
+}
+
+/**
+ * A single reused counter is usually the browser re-sending a request on a
+ * flaky connection. A clone reuses counter after counter as soon as both
+ * installs are in use, so only several distinct reused counters in a short
+ * window lock the binding.
+ */
+export const REPLAY_WINDOW_MS = 10 * 60 * 1000
+export const REPLAY_LOCK_THRESHOLD = 3
+
+export type DeviceReplay = { counter: number; at: string }
+
+export function readReplays(metadata: unknown): DeviceReplay[] {
+  const value = (metadata as { replays?: unknown } | null)?.replays
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value.filter(
+    (replay): replay is DeviceReplay => typeof replay?.counter === 'number' && typeof replay?.at === 'string'
+  )
+}
+
+export function recordReplay(replays: DeviceReplay[], counter: number, now: Date) {
+  const since = now.getTime() - REPLAY_WINDOW_MS
+  const recent = [...replays, { counter, at: now.toISOString() }].filter(
+    (replay) => new Date(replay.at).getTime() > since
+  )
+  const distinct = new Set(recent.map((replay) => replay.counter)).size
+  return { replays: recent, shouldLock: distinct >= REPLAY_LOCK_THRESHOLD }
+}
+
 export function parseCounter(value: string | undefined) {
   if (!value || !/^\d{1,15}$/.test(value)) {
     return null

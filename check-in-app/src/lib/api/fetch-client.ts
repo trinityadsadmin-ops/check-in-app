@@ -179,7 +179,19 @@ export const customFetch = async <T>(url: string, options: RequestInit = {}): Pr
     throw error
   }
 
-  const { response, data } = await rawFetch(url, { ...options, headers: await buildHeaders() })
+  let { response, data } = await rawFetch(url, { ...options, headers: await buildHeaders() })
+
+  // The backend saw this request's counter before (the browser re-sent it on a
+  // flaky connection). Reads are safe to sign again and retry once; writes are
+  // not, since the first copy may already have been applied.
+  const method = (options.method ?? 'GET').toUpperCase()
+  if (
+    response.status === 409 &&
+    (method === 'GET' || method === 'HEAD') &&
+    getApiErrorCode(new ApiError(409, data)) === 'DEVICE_COUNTER_REUSED'
+  ) {
+    ;({ response, data } = await rawFetch(url, { ...options, headers: await buildHeaders() }))
+  }
 
   if (response.status === 401 && !url.endsWith(REFRESH_PATH) && (await refreshAccessToken())) {
     const retry = await rawFetch(url, { ...options, headers: await buildHeaders() })

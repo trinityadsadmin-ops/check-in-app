@@ -13,6 +13,7 @@ export type ErrorCode =
   | 'DEVICE_LOCKED'
   | 'DEVICE_SIGNATURE_REQUIRED'
   | 'DEVICE_KEY_REQUIRED'
+  | 'DEVICE_COUNTER_REUSED'
   | 'MISSING_CHECK_OUT'
   | 'INTERNAL_SERVER_ERROR'
 
@@ -70,6 +71,14 @@ export const deviceError = (
   >,
   message: string
 ) => new AppError(403, code, message)
+
+/**
+ * The request reused a device counter. Usually the browser re-sent a request on
+ * a flaky connection, so this is not a lock: the app signs again and retries.
+ * 409 (not 403) so the app does not treat it as a blocked device.
+ */
+export const deviceCounterReused = () =>
+  new AppError(409, 'DEVICE_COUNTER_REUSED', 'This request was already received. Please try again.')
 
 export const missingCheckOut = (workDate: string) =>
   new AppError(

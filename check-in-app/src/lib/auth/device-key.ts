@@ -75,6 +75,9 @@ async function ensureRecord(db: IDBDatabase) {
     return
   }
   creating ??= (async () => {
+    // Ask the browser not to evict this origin's storage; losing the key means
+    // the backend has to re-enrol it. Best effort: unsupported or refused is fine.
+    void navigator.storage?.persist?.().catch(() => false)
     const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, [
       'sign',
       'verify'
